@@ -12,68 +12,68 @@ import os
 
 class CVCustomizer:
     def __init__(self, template_path: str):
-        """Initialize with a Word template containing placeholders."""
+        """initialize with a word template containing placeholders"""
         self.template_path = template_path
         self.document = Document(template_path)
     
     def replace_placeholders(self, replacements: Dict[str, Union[str, List[str]]]):
-        """Replace placeholders throughout the document while preserving formatting."""
-        # Handle paragraphs
+        """replace placeholders throughout the document while preserving formatting"""
+        # handle paragraphs
         for paragraph in self.document.paragraphs:
             self._replace_in_paragraph(paragraph, replacements)
         
-        # Handle tables
+        # handle tables
         for table in self.document.tables:
             for row in table.rows:
                 for cell in row.cells:
                     for paragraph in cell.paragraphs:
                         self._replace_in_paragraph(paragraph, replacements)
         
-        # Handle headers and footers
+        # handle headers and footers
         for section in self.document.sections:
-            # Header
+            # header
             for paragraph in section.header.paragraphs:
                 self._replace_in_paragraph(paragraph, replacements)
-            # Footer
+            # footer
             for paragraph in section.footer.paragraphs:
                 self._replace_in_paragraph(paragraph, replacements)
     
     def _replace_in_paragraph(self, paragraph, replacements):
-        """Replace placeholders in a paragraph while preserving run formatting."""
-        # Get full paragraph text
+        """replace placeholders in a paragraph while preserving run formatting"""
+        # get full paragraph text
         full_text = paragraph.text
         
-        # Check if any placeholders exist in this paragraph
+        # check if any placeholders exist in this paragraph
         has_placeholder = any(f"{{{{{key}}}}}" in full_text for key in replacements)
         if not has_placeholder:
             return
         
-        # Process each placeholder
+        # process each placeholder
         for key, value in replacements.items():
             placeholder = f"{{{{{key}}}}}"
             
             if placeholder in full_text:
                 if isinstance(value, list):
-                    # For lists, create bullet points
+                    # for lists, create bullet points
                     value_text = '\n• '.join(value)
                     value_text = '• ' + value_text if value else ''
                 else:
                     value_text = str(value)
                 
-                # If it's a simple replacement (placeholder is complete in one run)
+                # if it's a simple replacement (placeholder is complete in one run)
                 for run in paragraph.runs:
                     if placeholder in run.text:
-                        # Preserve formatting
+                        # preserve formatting
                         run.text = run.text.replace(placeholder, value_text)
                         return
                 
-                # Complex case: placeholder spans multiple runs
-                # Rebuild the paragraph
+                # complex case: placeholder spans multiple runs
+                # rebuild the paragraph
                 self._complex_replace(paragraph, placeholder, value_text)
     
     def _complex_replace(self, paragraph, placeholder, replacement):
-        """Handle placeholders that span multiple runs."""
-        # Store run properties
+        """handle placeholders that span multiple runs"""
+        # store run properties
         run_props = []
         combined_text = ""
         
@@ -88,17 +88,17 @@ class CVCustomizer:
             })
             combined_text += run.text
         
-        # Replace in combined text
+        # replace in combined text
         new_text = combined_text.replace(placeholder, replacement)
         
-        # Clear runs and recreate with original formatting
+        # clear runs and recreate with original formatting
         for run in paragraph.runs:
             run.text = ""
         
-        # Add the new text with the first run's formatting
+        # add the new text with the first run's formatting
         if paragraph.runs:
             paragraph.runs[0].text = new_text
-            # Apply the original formatting from the first run
+            # apply the original formatting from the first run
             if run_props:
                 props = run_props[0]
                 paragraph.runs[0].bold = props['bold']
@@ -110,13 +110,13 @@ class CVCustomizer:
                     paragraph.runs[0].font.size = props['font_size']
     
     def save_docx(self, output_path: str):
-        """Save the modified document as a Word file."""
+        """save the modified document as a word file"""
         self.document.save(output_path)
     
     def convert_to_pdf(self, docx_path: str, pdf_path: str):
-        """Convert Word document to PDF using LibreOffice (cross-platform)."""
+        """convert word document to pdf using libreoffice (cross-platform)"""
         try:
-            # Using LibreOffice in headless mode
+            # using libreoffice in headless mode
             subprocess.run([
                 'soffice',
                 '--headless',
@@ -127,40 +127,40 @@ class CVCustomizer:
                 docx_path
             ], check=True)
             
-            # Rename to desired output name if needed
+            # rename to desired output name if needed
             generated_pdf = Path(docx_path).with_suffix('.pdf')
             if generated_pdf.name != Path(pdf_path).name:
                 generated_pdf.rename(pdf_path)
                 
         except subprocess.CalledProcessError:
-            print("LibreOffice conversion failed. Trying python-docx2pdf...")
-            # Fallback to python-docx2pdf (Windows only)
+            print("libreoffice conversion failed. trying python-docx2pdf...")
+            # fallback to python-docx2pdf (windows only)
             try:
                 from docx2pdf import convert
                 convert(docx_path, pdf_path)
             except ImportError:
-                print("Please install LibreOffice or docx2pdf for PDF conversion")
+                print("please install libreoffice or docx2pdf for pdf conversion")
                 raise
     
     def customize_cv(self, job_data: Dict, output_name: str):
-        """Main method to customize CV with job data."""
-        # Create execution folder with today's date and time
+        """main method to customize cv with job data"""
+        # create execution folder with today's date and time
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         execution_folder = f"outputs/{timestamp}_{output_name}"
         
-        # Create the execution folder
+        # create the execution folder
         os.makedirs(execution_folder, exist_ok=True)
         print(f"📁 Created execution folder: {execution_folder}")
         
-        # Replace all placeholders
+        # replace all placeholders
         self.replace_placeholders(job_data)
         
-        # Save as Word document in execution folder
+        # save as word document in execution folder
         docx_output = f"{execution_folder}/{output_name}.docx"
         self.save_docx(docx_output)
         print(f"✓ Word document saved: {docx_output}")
         
-        # Convert to PDF in execution folder
+        # convert to pdf in execution folder
         pdf_output = f"{execution_folder}/{output_name}.pdf"
         self.convert_to_pdf(docx_output, pdf_output)
         print(f"✓ PDF generated: {pdf_output}")
@@ -169,9 +169,9 @@ class CVCustomizer:
 
 
 def main():
-    """Example usage of the CV customizer."""
+    """example usage of the cv customizer"""
     
-    # Example job posting data
+    # example job posting data
     job_data = {
         "job_title": "Senior Python Developer",
         "company_name": "TechCorp Solutions",
@@ -190,10 +190,10 @@ def main():
     
     customizer = CVCustomizer("resources/template.docx")
     
-    # Generate customized CV
+    # generate customized cv
     customizer.customize_cv(job_data, "CV_TechCorp_Senior_Python")
     
-    # You can also load data from JSON file
+    # i can also load data from json file
     # with open('job_posting.json', 'r') as f:
     #     job_data = json.load(f)
     # customizer.customize_cv(job_data, "CV_CustomJob")
@@ -203,11 +203,11 @@ if __name__ == "__main__":
     main()
 
 
-# === AUTOMATION SCRIPT ===
-# Save this as 'batch_customize.py' for bulk processing
+# === automation script ===
+# save this as 'batch_customize.py' for bulk processing
 
 def batch_process_cvs(template_path: str, jobs_folder: str):
-    """Process multiple job applications from JSON files."""
+    """process multiple job applications from json files"""
     jobs_path = Path(jobs_folder)
     
     for json_file in jobs_path.glob("*.json"):
@@ -216,42 +216,25 @@ def batch_process_cvs(template_path: str, jobs_folder: str):
         with open(json_file, 'r') as f:
             job_data = json.load(f)
         
-        # Create output name from company and position
+        # create output name from company and position
         company = job_data.get('company_name', 'Unknown').replace(' ', '_')
         position = job_data.get('job_title', 'Position').replace(' ', '_')
         output_name = f"CV_{company}_{position}"
         
-        # Customize CV
+        # customize cv
         customizer = CVCustomizer(template_path)
         customizer.customize_cv(job_data, output_name)
 
 
-# === TEMPLATE CREATION GUIDE ===
+# === template creation guide ===
 """
-Creating Your Word Template:
-
-1. Open Word and create your CV layout
-2. Insert placeholders where you want dynamic content:
-   - {{job_title}}
-   - {{company_name}}
-   - {{skills}}
-   - {{experience_highlights}}
-   - etc.
-
-3. Format the placeholders with your desired styling
-   (the script preserves formatting)
-
-4. Save as 'cv_template.docx'
-
-Example template structure:
-
 ---
 JOHN DOE
 {{job_title}} | {{location}}
 Email: {{contact_email}} | Phone: {{contact_phone}}
 
 OBJECTIVE
-Seeking position as {{job_title}} at {{company_name}} where I can utilize 
+Seeking position as {{job_title}} at {{company_name}} where i can utilize 
 my {{years_experience}} years of experience.
 
 SKILLS
