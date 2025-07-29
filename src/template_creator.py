@@ -7,6 +7,8 @@ from docx.shared import Pt, RGBColor
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 import subprocess
 import sys
+from datetime import datetime
+import os
 
 class CVCustomizer:
     def __init__(self, template_path: str):
@@ -142,16 +144,24 @@ class CVCustomizer:
     
     def customize_cv(self, job_data: Dict, output_name: str):
         """Main method to customize CV with job data."""
+        # Create execution folder with today's date and time
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        execution_folder = f"outputs/{timestamp}_{output_name}"
+        
+        # Create the execution folder
+        os.makedirs(execution_folder, exist_ok=True)
+        print(f"📁 Created execution folder: {execution_folder}")
+        
         # Replace all placeholders
         self.replace_placeholders(job_data)
         
-        # Save as Word document
-        docx_output = f"{output_name}.docx"
+        # Save as Word document in execution folder
+        docx_output = f"{execution_folder}/{output_name}.docx"
         self.save_docx(docx_output)
         print(f"✓ Word document saved: {docx_output}")
         
-        # Convert to PDF
-        pdf_output = f"{output_name}.pdf"
+        # Convert to PDF in execution folder
+        pdf_output = f"{execution_folder}/{output_name}.pdf"
         self.convert_to_pdf(docx_output, pdf_output)
         print(f"✓ PDF generated: {pdf_output}")
         
@@ -178,8 +188,7 @@ def main():
         "contact_phone": "+1-555-0123"
     }
     
-    # Initialize customizer with your template
-    customizer = CVCustomizer("cv_template.docx")
+    customizer = CVCustomizer("resources/template.docx")
     
     # Generate customized CV
     customizer.customize_cv(job_data, "CV_TechCorp_Senior_Python")

@@ -1,0 +1,16 @@
+Tie in with some LLM like 3.5 to support:
+    Parsing a pasted JD and turning into supported format script recongises
+
+
+Somewhere to dump raw pasted JD in (ctrl+c and v of entire webpage into a box)
+
+Auto output PDF file to useful directory
+
+Add additional context to the projects on the bulletpoints, so LLM can fill in gaps with relevant technologies
+    Include overall project what it did etc, more context the better
+Add supported my own technologies, and ones to exclude like Rust etc
+
+
+Way later
+Cover letter generator
+Application tracker dashboard?

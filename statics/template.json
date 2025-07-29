@@ -1,0 +1,12 @@
+{
+    "{{bio}}": "Proven track record of delivering production-grade solutions that eliminate manual processes, improve system performance by 60%+, and influence organizational security strategy.\n\nKey expertise includes architecting Python-based migration tools for complex relational data, implementing scalable event-driven systems on AWS, and optimizing infrastructure deployments across global regions, as well as SQL expertise. Demonstrated ability to present technical findings to leadership and drive strategic decision-making in enterprise environments.",
+    "{{t.skills}}": "Python, Java, AWS, RDS, Terraform",
+    "{{t.bp1}}": "• Led architecture and development of production-grade Python data migration tool for syncing complex relational data across DEV/STAGE/PROD environments with rollback safety, referential integrity validation, and automated testing\n• Replaced manual processes with automated solution featuring wildcard filtering and audit logging, eliminating migration errors and enabling reliable deployments across enterprise systems",
+    "{{t.bp2}}": "• Redesigned legacy application with database performance issues, implementing scalable event-driven architecture on AWS using Lambda, SQS, Python, and Java, achieving 60% performance improvement",
+    "{{t.bp3}}": "• Architected disaster recovery strategies for legacy core infrastructure, rebuilding critical Java services in Python to enable seamless DR failover and establishing automated backup systems across US-East-2 region, ensuring high availability for internal finance services",
+    "{{t.bp4}}": "• Developed high-performance data loaders for internal directory system, integrating Active Directory data into RDS and OpenSearch to optimize search functionality and reduce response times",
+    "{{a.skills}}": "Python, AWS, Java, Ruby, Linux System Administration",
+    "{{a.bp1}}": "• Optimized Region Build deployment process, reducing required time by 40-55% across 15+ Service Catalog services and pipelines",
+    "{{a.bp2}}": "• Deployed Service Catalog services across 5 newly launched AWS Regions (UAE, Melbourne, Spain, Zurich, Hyderabad) supporting global expansion",
+    "{{a.bp3}}": "• Led security escalation response managing 2,400+ hosts, implementing automated security patching pipelines"
+}
