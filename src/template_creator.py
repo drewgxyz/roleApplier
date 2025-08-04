@@ -146,7 +146,7 @@ class CVCustomizer:
         """main method to customize cv with job data"""
         # create execution folder with today's date and time
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        execution_folder = f"outputs/{timestamp}_{output_name}"
+        execution_folder = f"outputs/{timestamp}--"
         
         # create the execution folder
         os.makedirs(execution_folder, exist_ok=True)
@@ -224,26 +224,3 @@ def batch_process_cvs(template_path: str, jobs_folder: str):
         # customize cv
         customizer = CVCustomizer(template_path)
         customizer.customize_cv(job_data, output_name)
-
-
-# === template creation guide ===
-"""
----
-JOHN DOE
-{{job_title}} | {{location}}
-Email: {{contact_email}} | Phone: {{contact_phone}}
-
-OBJECTIVE
-Seeking position as {{job_title}} at {{company_name}} where i can utilize 
-my {{years_experience}} years of experience.
-
-SKILLS
-{{skills}}
-
-EXPERIENCE HIGHLIGHTS
-{{experience_highlights}}
-
-EDUCATION
-Bachelor of Science in {{education_focus}}
----
-"""
