@@ -138,6 +138,36 @@ class EnhancedCVCustomizer:
             adapted_experience, output_name, job_info, original_job_text
         )
         
+        # Smart optimization: Check if we can enhance the CV with more detail
+        print("🔍 Analyzing page space usage...")
+        page_usage = self.cv_customizer.estimate_page_usage(adapted_experience)
+        print(f"📊 Estimated page usage: {page_usage:.1%}")
+        
+        if page_usage < 0.75:  # If using less than 75% of page
+            print("🚀 Extra space available - regenerating with enhanced detail for maximum impact...")
+            try:
+                enhanced_experience = self.experience_adapter.regenerate_with_enhanced_detail(job_info, adapted_experience)
+                
+                # Regenerate CV with enhanced content
+                enhanced_docx_path, enhanced_pdf_path, _ = self.cv_customizer.customize_cv(
+                    enhanced_experience, output_name, job_info, original_job_text
+                )
+                
+                # Verify enhanced version doesn't exceed page limit
+                enhanced_page_usage = self.cv_customizer.estimate_page_usage(enhanced_experience)
+                print(f"📈 Enhanced page usage: {enhanced_page_usage:.1%}")
+                
+                if enhanced_page_usage <= 1.0:  # If still within page limit
+                    print("✨ Enhanced CV generated with maximum detail!")
+                    docx_path, pdf_path = enhanced_docx_path, enhanced_pdf_path
+                else:
+                    print("⚠️  Enhanced version too long, using original optimized version")
+                    
+            except Exception as e:
+                print(f"⚠️  Enhancement failed: {e}, using original version")
+        else:
+            print("✓ Optimal page usage achieved with current detail level")
+        
         # Generate cover letter
         print("💌 Generating tailored cover letter...")
         try:

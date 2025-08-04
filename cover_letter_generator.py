@@ -41,21 +41,24 @@ class CoverLetterGenerator:
 
         INSTRUCTIONS:
         1. Keep it professional but not overly formal
-        2. 3-4 paragraphs maximum
+        2. 2-3 paragraphs maximum (shorter for 1-page fit)
         3. Mention 2-3 most relevant technical skills that match the job
         4. Reference company/industry in a natural way (not forced enthusiasm)
         5. Focus on what I can contribute, not what I want to gain
         6. Keep it genuine - avoid AI-sounding phrases
-        7. Don't oversell or exaggerate
-        8. End with professional closing
+        7. Don't oversell or exaggerate - I'm mid-level, not senior
+        8. Be concise - target 75% of page maximum
+        9. End with simple professional closing
+        10. Do NOT include placeholder text like [Your name] - use Drew Gillies throughout
+        11. Do NOT repeat closing phrases or signatures
 
-        Return ONLY the cover letter text, no additional formatting or explanations.
+        Return ONLY the cover letter text without any placeholders, signatures, or repeated closings.
         """
 
         try:
             response = self.client.messages.create(
                 model="claude-3-5-sonnet-20241022",
-                max_tokens=800,
+                max_tokens=600,  # Reduced for shorter letters
                 messages=[{"role": "user", "content": prompt}]
             )
             
@@ -164,8 +167,17 @@ class CoverLetterGenerator:
         paragraphs = cover_letter_text.split('\n\n')
         for paragraph in paragraphs:
             if paragraph.strip():
-                story.append(Paragraph(paragraph.strip(), normal_style))
-                story.append(Spacer(1, 12))
+                # Clean up any template artifacts
+                clean_paragraph = paragraph.strip()
+                clean_paragraph = clean_paragraph.replace('[Your name]', 'Drew Gillies')
+                clean_paragraph = clean_paragraph.replace('[Your Name]', 'Drew Gillies')
+                clean_paragraph = clean_paragraph.replace('Best regards, [Your name]', '')
+                clean_paragraph = clean_paragraph.replace('Best regards,', '')
+                clean_paragraph = clean_paragraph.replace('Sincerely, [Your name]', '')
+                
+                if clean_paragraph:  # Only add non-empty paragraphs
+                    story.append(Paragraph(clean_paragraph, normal_style))
+                    story.append(Spacer(1, 12))
         
         # Professional closing
         closing_text = """

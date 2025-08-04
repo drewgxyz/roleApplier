@@ -16,7 +16,7 @@ class CVCustomizer:
         self.template_path = template_path
         self.document = Document(template_path)
     
-    def replace_placeholders(self, replacements: Dict[str, Union[str, List[str]]]):
+    def replace_placeholders(self, replacements: Dict[str, Union[str, list[str]]]):
         """replace placeholders throughout the document while preserving formatting"""
         # handle paragraphs
         for paragraph in self.document.paragraphs:
@@ -225,6 +225,50 @@ class CVCustomizer:
             pdf_output = None
         
         return docx_output, pdf_output, execution_folder
+    
+    def estimate_page_usage(self, job_data: Dict) -> float:
+        """Estimate how much of the page the CV will use (0.0 to 1.0)"""
+        
+        # Character count weights based on CV template analysis
+        char_weights = {
+            'bio': 2.8,  # Bio takes more vertical space due to paragraph formatting
+            'expertise': 1.2,  # Skills list is compact
+            'tech_stack': 1.0,  # Tech stacks are single lines
+            'bullet_point': 2.2  # Bullet points have spacing and formatting
+        }
+        
+        total_chars = 0
+        
+        # Count bio characters
+        bio = job_data.get('bio', '')
+        total_chars += len(bio) * char_weights['bio']
+        
+        # Count expertise characters
+        expertise = job_data.get('expertise', [])
+        expertise_text = ', '.join(expertise) if isinstance(expertise, list) else str(expertise)
+        total_chars += len(expertise_text) * char_weights['expertise']
+        
+        # Count bullet points and tech stacks
+        for section in ['t', 'a']:
+            if section in job_data and isinstance(job_data[section], dict):
+                section_data = job_data[section]
+                
+                # Tech stack
+                skills = section_data.get('skills', '')
+                total_chars += len(skills) * char_weights['tech_stack']
+                
+                # Bullet points
+                for i in range(1, 5):  # bp1-bp4 for t, bp1-bp3 for a
+                    bp_key = f'bp{i}'
+                    if bp_key in section_data:
+                        bp_text = section_data[bp_key]
+                        total_chars += len(bp_text) * char_weights['bullet_point']
+        
+        # Estimate page usage (calibrated based on your template)
+        # Your template can handle roughly 3000 weighted characters for a full page
+        page_usage = total_chars / 3000.0
+        
+        return min(page_usage, 1.0)  # Cap at 100%
     
     def _validate_content_length(self, job_data: Dict):
         """Validate that content will fit on one page"""

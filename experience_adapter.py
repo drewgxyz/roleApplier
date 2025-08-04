@@ -161,10 +161,10 @@ class ExperienceAdapter:
         - Focus bio on experience and skills, not inflated titles
 
         DETAIL LEVEL DEFINITIONS:
-        - HIGH: 25-35 words, include specific technologies, metrics, and technical details
-        - MEDIUM: 18-25 words, include key technologies and one metric/outcome
-        - LOW: 12-18 words, focus on impact and one key technology
-        - MINIMAL: 8-12 words, essential impact only
+        - HIGH: 30-40 words, include specific technologies, metrics, and technical details
+        - MEDIUM: 20-30 words, include key technologies and quantified outcomes  
+        - LOW: 15-25 words, focus on impact and relevant technologies
+        - MINIMAL: 10-15 words, essential impact only
 
         BULLET POINT REQUIREMENTS:
         - ALWAYS mention specific technologies from the tech stacks in bullet points
@@ -216,6 +216,150 @@ class ExperienceAdapter:
         except Exception as e:
             print(f"Error adapting experience: {e}")
             raise
+    
+    def regenerate_with_enhanced_detail(self, job_info: JobInfo, current_data: Dict) -> Dict:
+        """Regenerate CV with enhanced detail levels for maximum impact"""
+        
+        # Get current relevance assessment
+        relevant_skills = self._filter_job_skills_with_priority(job_info.required_skills + job_info.preferred_skills)
+        relevance_score = self._assess_job_relevance(job_info, relevant_skills)
+        
+        # Enhanced strategy - boost detail levels
+        enhanced_strategy = self._get_enhanced_content_strategy(relevance_score)
+        
+        # Include skills filtering information in context
+        skills_section = f"""
+        MY ACTUAL SKILLS (tiered by priority):
+        Tier 1 Core: {', '.join(self.skill_tiers.get('tier_1_core', []))}
+        Tier 2 Major: {', '.join(self.skill_tiers.get('tier_2_major', []))}
+        Tier 3 Specialist: {', '.join(self.skill_tiers.get('tier_3_specialist', []))}
+        Tier 4 Tools: {', '.join(self.skill_tiers.get('tier_4_tools', []))}
+        
+        BLACKLISTED SKILLS (never mention these):
+        {', '.join(self.blacklisted_skills)}
+        
+        JOB RELEVANT SKILLS (prioritized by tier):
+        {', '.join(relevant_skills)}
+        
+        ENHANCED CONTENT STRATEGY (MAXIMIZE DETAIL):
+        Job Relevance Score: {relevance_score}/10
+        Content Strategy: {enhanced_strategy['name']} (ENHANCED FOR MAXIMUM IMPACT)
+        Bio Length: {enhanced_strategy['bio_sentences']} sentences
+        T. Rowe Price Detail Level: {enhanced_strategy['trp_detail']}
+        AWS Detail Level: {enhanced_strategy['aws_detail']}
+        Expertise Skills Count: {enhanced_strategy['expertise_count']}
+        
+        GOAL: Use available page space to create the STRONGEST possible CV for this role.
+        """
+        
+        # Include additional context in the prompt
+        context_section = ""
+        if self.additional_context:
+            context_section = f"""
+        ADDITIONAL PROJECT CONTEXT (use extensively for enhanced detail):
+        {json.dumps(self.additional_context, indent=2)}
+        
+        Instructions for enhanced context usage:
+        - Use rich technical details from context to strengthen bullet points
+        - Include specific metrics, team sizes, and technical achievements
+        - Mention multiple relevant technologies per bullet point when appropriate
+        - Draw from business impact and technical complexity details
+        - Use quantified results extensively
+        """
+        
+        prompt = f"""
+        ENHANCED CV GENERATION - MAXIMIZE IMPACT FOR THIS ROLE
+
+        I need to create the STRONGEST possible CV for this specific job. I have extra page space available, so I can include more technical detail and impact metrics.
+
+        TARGET JOB:
+        - Position: {job_info.job_title} at {job_info.company_name}
+        - Required Skills: {', '.join(job_info.required_skills)}
+        - Preferred Skills: {', '.join(job_info.preferred_skills)}
+        - Key Responsibilities: {', '.join(job_info.key_responsibilities)}
+        - Industry: {job_info.industry}
+
+        {skills_section}
+
+        MY CURRENT EXPERIENCE (to adapt from):
+        {json.dumps(self.original_cv_data, indent=2)}
+        
+        {context_section}
+
+        ENHANCED INSTRUCTIONS (MAXIMIZE IMPACT):
+        1. MUST still fit on exactly 1 page - but use available space fully
+        2. Bio: Use exactly {enhanced_strategy['bio_sentences']} sentences with rich detail
+        3. T. Rowe Price bullets: {enhanced_strategy['trp_detail']} detail level
+        4. AWS bullets: {enhanced_strategy['aws_detail']} detail level  
+        5. Expertise: Include exactly {enhanced_strategy['expertise_count']} skills
+        6. Tech stacks: Include MORE technologies (10-12) from MY ACTUAL SKILLS list
+        7. NEVER mention any skills from the BLACKLISTED SKILLS list
+        8. Use extensive metrics, technical details, and specific achievements
+        9. Include multiple technologies per bullet point when relevant
+        10. Draw heavily from additional context for technical depth
+
+        JOB TITLE RESTRICTIONS (CRITICAL):
+        - NEVER call me "Senior" anything in the bio
+        - Acceptable titles ONLY: "Software Engineer", "Software Developer", "Mid-level Software Engineer", "Mid-level Software Developer"
+
+        ENHANCED DETAIL LEVEL DEFINITIONS:
+        - MAXIMUM: 40-55 words, multiple technologies, extensive metrics, technical depth, team context
+        - HIGH: 30-40 words, include specific technologies, metrics, and technical details
+        - MEDIUM: 20-30 words, include key technologies and quantified outcomes
+        - LOW: 15-25 words, focus on impact and relevant technologies
+        - MINIMAL: 10-15 words, essential impact only
+
+        BULLET POINT REQUIREMENTS (ENHANCED):
+        - Include 2-4 specific technologies per bullet point when space allows
+        - Add quantified business impact and detailed technical metrics
+        - Use technical terminology that matches the job requirements
+        - Include team collaboration, scale, and architectural decisions
+        - Mention compliance, performance improvements, and technical challenges solved
+        - Draw extensively from additional context for rich technical detail
+        - Each bullet should tell a complete story of technical achievement
+
+        Return ONLY a JSON object with these exact fields:
+        {{
+            "bio": "Enhanced bio with exactly {enhanced_strategy['bio_sentences']} sentences - rich technical detail but NEVER 'Senior' titles",
+            "expertise": ["Exactly {enhanced_strategy['expertise_count']} most relevant skills from MY ACTUAL SKILLS"],
+            "t": {{
+                "skills": "Enhanced tech stack list (10-12 technologies from MY ACTUAL SKILLS)",
+                "bp1": "{enhanced_strategy['trp_detail']} detail bullet point with multiple technologies and metrics",
+                "bp2": "{enhanced_strategy['trp_detail']} detail bullet point with technical depth and business impact", 
+                "bp3": "{enhanced_strategy['trp_detail']} detail bullet point with specific achievements and technologies",
+                "bp4": "{enhanced_strategy['trp_detail']} detail bullet point with quantified results and technical detail"
+            }},
+            "a": {{
+                "skills": "Enhanced tech stack list (8-10 technologies from MY ACTUAL SKILLS)",
+                "bp1": "{enhanced_strategy['aws_detail']} detail bullet point with scale metrics and technologies",
+                "bp2": "{enhanced_strategy['aws_detail']} detail bullet point with scope, impact and technical detail",
+                "bp3": "{enhanced_strategy['aws_detail']} detail bullet point with compliance, security and technical achievements"
+            }}
+        }}
+
+        CRITICAL: Create the STRONGEST possible CV for this role. Use available space for maximum technical impact.
+        Technologies in tech stacks MUST appear in bullet points. Include extensive technical detail and metrics.
+        """
+
+        try:
+            response = self.client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=2500,  # Increased for enhanced detail
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            response_text = response.content[0].text
+            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            
+            if json_match:
+                return json.loads(json_match.group())
+            else:
+                raise ValueError("Could not extract JSON from AI response")
+                
+        except Exception as e:
+            print(f"Error in enhanced regeneration: {e}")
+            # Return original data as fallback
+            return current_data
     
     def _filter_job_skills(self, job_skills: list[str]) -> list[str]:
         """Filter job skills to only include ones I actually have"""
@@ -355,4 +499,44 @@ class ExperienceAdapter:
                 'trp_detail': 'LOW',
                 'aws_detail': 'MINIMAL',
                 'expertise_count': 8
+            }
+    
+    def _get_enhanced_content_strategy(self, relevance_score: int) -> dict:
+        """Get enhanced content strategy for maximum impact when space allows"""
+        
+        if relevance_score >= 8:
+            # High relevance - maximum detail for best match
+            return {
+                'name': 'MAXIMUM_IMPACT_HIGH_RELEVANCE',
+                'bio_sentences': 3,  # Shorter bio for more bullet space
+                'trp_detail': 'MAXIMUM',
+                'aws_detail': 'HIGH',
+                'expertise_count': 14
+            }
+        elif relevance_score >= 6:
+            # Medium-high relevance - enhanced balanced approach
+            return {
+                'name': 'ENHANCED_MEDIUM_HIGH_RELEVANCE', 
+                'bio_sentences': 3,
+                'trp_detail': 'HIGH',
+                'aws_detail': 'HIGH',
+                'expertise_count': 12
+            }
+        elif relevance_score >= 4:
+            # Medium relevance - enhanced conservative approach
+            return {
+                'name': 'ENHANCED_MEDIUM_RELEVANCE',
+                'bio_sentences': 4,
+                'trp_detail': 'HIGH',
+                'aws_detail': 'MEDIUM',
+                'expertise_count': 11
+            }
+        else:
+            # Low relevance - still enhanced from original
+            return {
+                'name': 'ENHANCED_LOW_RELEVANCE',
+                'bio_sentences': 4,
+                'trp_detail': 'MEDIUM',
+                'aws_detail': 'LOW',
+                'expertise_count': 9
             }
