@@ -95,7 +95,7 @@ class ExperienceAdapter:
         Tier 3 Specialist: {', '.join(self.skill_tiers.get('tier_3_specialist', []))}
         Tier 4 Tools: {', '.join(self.skill_tiers.get('tier_4_tools', []))}
         
-        BLACKlistED SKILLS (never mention these):
+        BLACKLISTED SKILLS (never mention these):
         {', '.join(self.blacklisted_skills)}
         
         JOB RELEVANT SKILLS (prioritized by tier):
@@ -148,10 +148,17 @@ class ExperienceAdapter:
         4. AWS bullets: {content_strategy['aws_detail']} detail level  
         5. Expertise: Include exactly {content_strategy['expertise_count']} skills
         6. Tech stacks: Maximum 8-10 technologies from MY ACTUAL SKILLS list
-        7. NEVER mention any skills from the BLACKlistED SKILLS list
+        7. NEVER mention any skills from the BLACKLISTED SKILLS list
         8. Prioritize most relevant content first
         9. Include specific metrics where possible but keep within length limits
         10. Use job-relevant keywords naturally
+
+        JOB TITLE RESTRICTIONS (CRITICAL):
+        - NEVER call me "Senior" anything in the bio
+        - NEVER use job titles higher than my actual level
+        - Acceptable titles ONLY: "Software Engineer", "Software Developer", "Mid-level Software Engineer", "Mid-level Software Developer"
+        - Even if job posting is for "Senior" roles, stick to my actual level
+        - Focus bio on experience and skills, not inflated titles
 
         DETAIL LEVEL DEFINITIONS:
         - HIGH: 25-35 words, include specific technologies, metrics, and technical details
@@ -169,7 +176,7 @@ class ExperienceAdapter:
 
         Return ONLY a JSON object with these exact fields:
         {{
-            "bio": "Bio paragraph with exactly {content_strategy['bio_sentences']} sentences",
+            "bio": "Bio paragraph with exactly {content_strategy['bio_sentences']} sentences - NEVER use 'Senior' or inflated job titles",
             "expertise": ["Exactly {content_strategy['expertise_count']} most relevant skills from MY ACTUAL SKILLS"],
             "t": {{
                 "skills": "Concise tech stack list (only from MY ACTUAL SKILLS)",
@@ -187,6 +194,7 @@ class ExperienceAdapter:
         }}
 
         CRITICAL: Follow the exact content strategy provided. Technologies in tech stacks MUST appear in bullet points.
+        NEVER inflate job titles - use only "Software Engineer", "Software Developer", or "Mid-level" versions.
         Adjust content density based on detail levels to ensure 1-page fit.
         """
 
@@ -209,7 +217,7 @@ class ExperienceAdapter:
             print(f"Error adapting experience: {e}")
             raise
     
-    def _filter_job_skills(self, job_skills: list[str]) -> list[str]:
+    def _filter_job_skills(self, job_skills: List[str]) -> List[str]:
         """Filter job skills to only include ones I actually have"""
         relevant_skills = []
         
@@ -233,7 +241,7 @@ class ExperienceAdapter:
         
         return relevant_skills
     
-    def _filter_job_skills_with_priority(self, job_skills: list[str]) -> list[str]:
+    def _filter_job_skills_with_priority(self, job_skills: List[str]) -> List[str]:
         """Filter job skills to only include ones I actually have, prioritized by tier"""
         relevant_skills_by_tier = {
             'tier_1_core': [],
@@ -268,7 +276,7 @@ class ExperienceAdapter:
         
         return prioritized_skills
     
-    def _assess_job_relevance(self, job_info: JobInfo, relevant_skills: list[str]) -> int:
+    def _assess_job_relevance(self, job_info: JobInfo, relevant_skills: List[str]) -> int:
         """Assess how relevant this job is to my experience (1-10 scale)"""
         relevance_score = 0
         
