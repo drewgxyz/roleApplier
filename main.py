@@ -25,7 +25,51 @@ def load_config():
             "template_path": "templates/template.docx",
             "original_cv_path": "data/orig.docx",
             "context_path": "data/project_context.json",
-            "input_file": "data/input.json"
+            "input_file": "data/input.json",
+            "skills_config": {
+                "my_skills": {
+                    "tier_1_core": [
+                        "Python", "Java", "JavaScript", "SQL", "AWS"
+                    ],
+                    "tier_2_major": [
+                        "Docker", "Terraform", "PostgreSQL", "Linux", "Git",
+                        "Flask", "Django", "FastAPI", "Spring Boot", "jQuery"
+                    ],
+                    "tier_3_specialist": [
+                        "RDS", "DynamoDB", "Lambda", "SQS", "S3", "EC2", "ECS",
+                        "MySQL", "MongoDB", "Redis", "Elasticsearch", "SQLite",
+                        "Jenkins", "GitHub Actions", "Prometheus", "Grafana",
+                        "ELK Stack", "CloudWatch"
+                    ],
+                    "tier_4_tools": [
+                        "Pandas", "NumPy", "Ubuntu", "CentOS", "macOS", "Windows Server",
+                        "Bash", "PowerShell", "Vim", "Jira", "Confluence", "pytest",
+                        "Cypress", "Jest", "Postman", "Cucumber", "Amazon SQS",
+                        "Scikit-learn", "OWASP", "Wireshark", "Nmap", "OAuth",
+                        "SAML", "Vault (HashiCorp)", "JWT", "ETL", "Data Migration",
+                        "System Administration", "Performance Optimization",
+                        "Monitoring", "Security", "Apache Airflow", "OpenSearch"
+                    ]
+                },
+                "blacklisted_skills": [
+                    "TypeScript", "Go", "Rust", "C++", "C#", "C", "PHP", "Ruby",
+                    "Scala", "Kotlin", "Swift", "R", "MATLAB", "Express.js", "React",
+                    "Angular", "Node.js", "Bootstrap", "Apache Spark", "Apache Kafka",
+                    "Jupyter", "Matplotlib", "Seaborn", "Plotly", "Apache Beam",
+                    "Dask", "Polars", "Cassandra", "InfluxDB", "Neo4j", "Oracle",
+                    "SQL Server", "Azure", "Google Cloud Platform", "Azure Functions",
+                    "Google Cloud Functions", "Kubernetes", "Ansible", "GitLab CI/CD",
+                    "CircleCI", "Helm", "Vagrant", "DataDog", "New Relic", "SVN",
+                    "JUnit", "Selenium", "Mocha", "SonarQube", "TestNG", "Apache Kafka",
+                    "RabbitMQ", "Apache ActiveMQ", "Azure Service Bus", "Google Pub/Sub",
+                    "Apache Pulsar", "Splunk", "Jaeger", "Zipkin", "TensorFlow",
+                    "PyTorch", "Keras", "OpenCV", "NLTK", "spaCy", "Transformers",
+                    "MLflow", "Kubeflow", "Databricks", "Snowflake", "DBT",
+                    "Great Expectations", "Apache NiFi", "Talend", "Pentaho",
+                    "Machine Learning", "Deep Learning", "Metasploit", "Burp Suite",
+                    "Nessus"
+                ]
+            }
         }
         
         with open(config_file, 'w') as f:
@@ -59,11 +103,11 @@ def load_config():
         return None
 
 class EnhancedCVCustomizer:
-    def __init__(self, template_path: str, api_key: str, original_cv_path: str = None, context_path: str = None):
+    def __init__(self, template_path: str, api_key: str, original_cv_path: str = None, context_path: str = None, skills_config: dict = None):
         """Enhanced CV customizer with AI integration"""
         self.cv_customizer = CVCustomizer(template_path)
         self.job_parser = AIJobParser(api_key)
-        self.experience_adapter = ExperienceAdapter(api_key, original_cv_path, context_path)
+        self.experience_adapter = ExperienceAdapter(api_key, original_cv_path, context_path, skills_config or {})
     
     def create_cv_from_input_file(self, input_file: str, output_name: Optional[str] = None):
         """Main method: provide input file with job description, get customized CV"""
@@ -192,11 +236,13 @@ def main():
     
     # Initialize the customizer
     print("🔧 Initializing AI CV customizer...")
+    skills_config = config.get('skills_config', {})
     customizer = EnhancedCVCustomizer(
         TEMPLATE_PATH, 
         CLAUDE_API_KEY, 
         ORIGINAL_CV_PATH, 
-        CONTEXT_PATH if Path(CONTEXT_PATH).exists() else None
+        CONTEXT_PATH if Path(CONTEXT_PATH).exists() else None,
+        skills_config
     )
     
     if Path(CONTEXT_PATH).exists():

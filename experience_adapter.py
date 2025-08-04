@@ -7,11 +7,26 @@ from docx import Document
 from job_parser import JobInfo
 
 class ExperienceAdapter:
-    def __init__(self, api_key: str, original_cv_path: str = None, context_path: str = None):
+    def __init__(self, api_key: str, original_cv_path: str = None, context_path: str = None, skills_config: dict = None):
         """Initialize with Claude API and optional original CV for reference"""
         self.client = anthropic.Anthropic(api_key=api_key)
         self.original_cv_data = self._extract_cv_data(original_cv_path) if original_cv_path else None
         self.additional_context = self._load_additional_context(context_path) if context_path else {}
+        self.skills_config = skills_config or {}
+        
+        # Handle both old flat list format and new tiered format
+        if isinstance(skills_config.get('my_skills'), dict):
+            # New tiered format
+            self.my_skills = []
+            self.skill_tiers = skills_config['my_skills']
+            for tier in ['tier_1_core', 'tier_2_major', 'tier_3_specialist', 'tier_4_tools']:
+                self.my_skills.extend(self.skill_tiers.get(tier, []))
+        else:
+            # Old flat format (backward compatibility)
+            self.my_skills = skills_config.get('my_skills', [])
+            self.skill_tiers = {'tier_1_core': self.my_skills}
+            
+        self.blacklisted_skills = skills_config.get('blacklisted_skills', [])
     
     def _extract_cv_data(self, cv_path: str) -> Dict:
         """Extract experience data from original CV document"""
@@ -65,6 +80,36 @@ class ExperienceAdapter:
         if not self.original_cv_data:
             raise ValueError("No original CV data loaded. Please provide original CV path.")
         
+        # Filter job skills based on my actual skills and blacklist
+        relevant_skills = self._filter_job_skills_with_priority(job_info.required_skills + job_info.preferred_skills)
+        
+        # Assess job relevance to determine content strategy
+        relevance_score = self._assess_job_relevance(job_info, relevant_skills)
+        content_strategy = self._determine_content_strategy(relevance_score)
+        
+        # Include skills filtering information in context
+        skills_section = f"""
+        MY ACTUAL SKILLS (tiered by priority):
+        Tier 1 Core: {', '.join(self.skill_tiers.get('tier_1_core', []))}
+        Tier 2 Major: {', '.join(self.skill_tiers.get('tier_2_major', []))}
+        Tier 3 Specialist: {', '.join(self.skill_tiers.get('tier_3_specialist', []))}
+        Tier 4 Tools: {', '.join(self.skill_tiers.get('tier_4_tools', []))}
+        
+        BLACKlistED SKILLS (never mention these):
+        {', '.join(self.blacklisted_skills)}
+        
+        JOB RELEVANT SKILLS (prioritized by tier):
+        {', '.join(relevant_skills)}
+        
+        CONTENT STRATEGY FOR THIS JOB:
+        Job Relevance Score: {relevance_score}/10
+        Content Strategy: {content_strategy['name']}
+        Bio Length: {content_strategy['bio_sentences']} sentences
+        T. Rowe Price Detail Level: {content_strategy['trp_detail']}
+        AWS Detail Level: {content_strategy['aws_detail']}
+        Expertise Skills Count: {content_strategy['expertise_count']}
+        """
+        
         # Include additional context in the prompt
         context_section = ""
         if self.additional_context:
@@ -89,46 +134,60 @@ class ExperienceAdapter:
         - Key Responsibilities: {', '.join(job_info.key_responsibilities)}
         - Industry: {job_info.industry}
 
+        {skills_section}
+
         MY CURRENT EXPERIENCE (to adapt from):
         {json.dumps(self.original_cv_data, indent=2)}
         
         {context_section}
 
-        CRITICAL INSTRUCTIONS:
-        1. MUST fit on exactly 1 page - be extremely concise
-        2. Bio: Maximum 4 lines, focus on most relevant experience
-        3. Each bullet point: Maximum 1-2 lines (about 15-20 words max)
-        4. Tech stacks: Comma-separated list, maximum 8-10 technologies
-        5. Keep the same professional tone as the original
-        6. Include specific metrics where possible but keep brief
-        7. Use job-relevant keywords naturally but don't stuff
-        8. Prioritize impact and relevance over detail
+        CRITICAL INSTRUCTIONS - ADAPTIVE LENGTH MANAGEMENT:
+        1. MUST fit on exactly 1 page - use the content strategy provided
+        2. Bio: Use exactly {content_strategy['bio_sentences']} sentences
+        3. T. Rowe Price bullets: {content_strategy['trp_detail']} detail level
+        4. AWS bullets: {content_strategy['aws_detail']} detail level  
+        5. Expertise: Include exactly {content_strategy['expertise_count']} skills
+        6. Tech stacks: Maximum 8-10 technologies from MY ACTUAL SKILLS list
+        7. NEVER mention any skills from the BLACKlistED SKILLS list
+        8. Prioritize most relevant content first
+        9. Include specific metrics where possible but keep within length limits
+        10. Use job-relevant keywords naturally
 
-        FORMATTING REQUIREMENTS:
-        - Bio should be 3-4 sentences maximum
-        - Each bullet point should be ONE line if possible
-        - Focus on action verbs and quantified results
-        - Remove unnecessary words and filler
+        DETAIL LEVEL DEFINITIONS:
+        - HIGH: 25-35 words, include specific technologies, metrics, and technical details
+        - MEDIUM: 18-25 words, include key technologies and one metric/outcome
+        - LOW: 12-18 words, focus on impact and one key technology
+        - MINIMAL: 8-12 words, essential impact only
+
+        BULLET POINT REQUIREMENTS:
+        - ALWAYS mention specific technologies from the tech stacks in bullet points
+        - Include deliverable business value and quantified results when space allows
+        - Use action verbs and technical specificity
+        - Prioritize content relevance to the target job
+        - If detail level is HIGH, include multiple technologies per bullet point
+        - If detail level is LOW/MINIMAL, focus on most relevant single technology
 
         Return ONLY a JSON object with these exact fields:
         {{
-            "bio": "Updated bio paragraph (3-4 sentences max)",
+            "bio": "Bio paragraph with exactly {content_strategy['bio_sentences']} sentences",
+            "expertise": ["Exactly {content_strategy['expertise_count']} most relevant skills from MY ACTUAL SKILLS"],
             "t": {{
-                "skills": "Concise tech stack list",
-                "bp1": "One-line bullet point emphasizing relevant achievement",
-                "bp2": "One-line bullet point with performance metric", 
-                "bp3": "One-line bullet point highlighting relevant tech",
-                "bp4": "One-line bullet point with business impact"
+                "skills": "Concise tech stack list (only from MY ACTUAL SKILLS)",
+                "bp1": "{content_strategy['trp_detail']} detail bullet point mentioning specific technologies and business impact",
+                "bp2": "{content_strategy['trp_detail']} detail bullet point with technical specifics and metrics", 
+                "bp3": "{content_strategy['trp_detail']} detail bullet point highlighting technologies and value",
+                "bp4": "{content_strategy['trp_detail']} detail bullet point with technical detail and outcomes"
             }},
             "a": {{
-                "skills": "Concise tech stack list",
-                "bp1": "One-line bullet point with efficiency improvement",
-                "bp2": "One-line bullet point with scale/scope",
-                "bp3": "One-line bullet point with compliance/security impact"
+                "skills": "Concise tech stack list (only from MY ACTUAL SKILLS)",
+                "bp1": "{content_strategy['aws_detail']} detail bullet point with efficiency/scale metrics",
+                "bp2": "{content_strategy['aws_detail']} detail bullet point emphasizing scope and scale",
+                "bp3": "{content_strategy['aws_detail']} detail bullet point with compliance/security impact"
             }}
         }}
 
-        Remember: BREVITY IS CRITICAL. Each bullet point should be 15-25 words maximum.
+        CRITICAL: Follow the exact content strategy provided. Technologies in tech stacks MUST appear in bullet points.
+        Adjust content density based on detail levels to ensure 1-page fit.
         """
 
         try:
@@ -149,3 +208,143 @@ class ExperienceAdapter:
         except Exception as e:
             print(f"Error adapting experience: {e}")
             raise
+    
+    def _filter_job_skills(self, job_skills: list[str]) -> list[str]:
+        """Filter job skills to only include ones I actually have"""
+        relevant_skills = []
+        
+        for job_skill in job_skills:
+            # Check if this job skill matches any of my skills (case insensitive)
+            for my_skill in self.my_skills:
+                if (job_skill.lower() in my_skill.lower() or 
+                    my_skill.lower() in job_skill.lower() or
+                    job_skill.lower() == my_skill.lower()):
+                    
+                    # Make sure it's not blacklisted
+                    is_blacklisted = any(
+                        blacklisted.lower() in job_skill.lower() or
+                        job_skill.lower() in blacklisted.lower()
+                        for blacklisted in self.blacklisted_skills
+                    )
+                    
+                    if not is_blacklisted and my_skill not in relevant_skills:
+                        relevant_skills.append(my_skill)
+                        break
+        
+        return relevant_skills
+    
+    def _filter_job_skills_with_priority(self, job_skills: list[str]) -> list[str]:
+        """Filter job skills to only include ones I actually have, prioritized by tier"""
+        relevant_skills_by_tier = {
+            'tier_1_core': [],
+            'tier_2_major': [],
+            'tier_3_specialist': [],
+            'tier_4_tools': []
+        }
+        
+        for job_skill in job_skills:
+            # Check if this job skill matches any of my skills (case insensitive)
+            for tier_name, tier_skills in self.skill_tiers.items():
+                for my_skill in tier_skills:
+                    if (job_skill.lower() in my_skill.lower() or 
+                        my_skill.lower() in job_skill.lower() or
+                        job_skill.lower() == my_skill.lower()):
+                        
+                        # Make sure it's not blacklisted
+                        is_blacklisted = any(
+                            blacklisted.lower() in job_skill.lower() or
+                            job_skill.lower() in blacklisted.lower()
+                            for blacklisted in self.blacklisted_skills
+                        )
+                        
+                        if not is_blacklisted and my_skill not in relevant_skills_by_tier[tier_name]:
+                            relevant_skills_by_tier[tier_name].append(my_skill)
+                            break
+        
+        # Flatten in priority order
+        prioritized_skills = []
+        for tier in ['tier_1_core', 'tier_2_major', 'tier_3_specialist', 'tier_4_tools']:
+            prioritized_skills.extend(relevant_skills_by_tier[tier])
+        
+        return prioritized_skills
+    
+    def _assess_job_relevance(self, job_info: JobInfo, relevant_skills: list[str]) -> int:
+        """Assess how relevant this job is to my experience (1-10 scale)"""
+        relevance_score = 0
+        
+        # Check for core technology matches
+        core_matches = 0
+        for skill in self.skill_tiers.get('tier_1_core', []):
+            if any(skill.lower() in req.lower() for req in job_info.required_skills + job_info.preferred_skills):
+                core_matches += 1
+        
+        # Score based on core technology alignment
+        if core_matches >= 3:
+            relevance_score += 4
+        elif core_matches >= 2:
+            relevance_score += 3
+        elif core_matches >= 1:
+            relevance_score += 2
+        
+        # Check for experience domain matches
+        finance_keywords = ['finance', 'financial', 'trading', 'banking', 'investment']
+        cloud_keywords = ['cloud', 'aws', 'infrastructure', 'devops', 'deployment']
+        data_keywords = ['data', 'etl', 'migration', 'database', 'analytics']
+        
+        job_text = f"{job_info.job_title} {' '.join(job_info.key_responsibilities)} {job_info.industry}".lower()
+        
+        domain_matches = 0
+        if any(keyword in job_text for keyword in finance_keywords):
+            domain_matches += 2
+        if any(keyword in job_text for keyword in cloud_keywords):
+            domain_matches += 2  
+        if any(keyword in job_text for keyword in data_keywords):
+            domain_matches += 2
+            
+        relevance_score += min(domain_matches, 4)
+        
+        # Bonus for seniority level match
+        if any(term in job_info.years_experience.lower() for term in ['2-3', '3-5', 'mid', 'senior']):
+            relevance_score += 2
+            
+        return min(relevance_score, 10)
+    
+    def _determine_content_strategy(self, relevance_score: int) -> dict:
+        """Determine content strategy based on job relevance"""
+        
+        if relevance_score >= 8:
+            # High relevance - maximize detail for best match
+            return {
+                'name': 'HIGH_RELEVANCE',
+                'bio_sentences': 3,  # Shorter bio for more bullet space
+                'trp_detail': 'HIGH',
+                'aws_detail': 'MEDIUM',
+                'expertise_count': 12
+            }
+        elif relevance_score >= 6:
+            # Medium-high relevance - balanced approach
+            return {
+                'name': 'MEDIUM_HIGH_RELEVANCE', 
+                'bio_sentences': 3,
+                'trp_detail': 'MEDIUM',
+                'aws_detail': 'MEDIUM',
+                'expertise_count': 10
+            }
+        elif relevance_score >= 4:
+            # Medium relevance - conservative approach
+            return {
+                'name': 'MEDIUM_RELEVANCE',
+                'bio_sentences': 4,
+                'trp_detail': 'MEDIUM',
+                'aws_detail': 'LOW',
+                'expertise_count': 10
+            }
+        else:
+            # Low relevance - minimal approach
+            return {
+                'name': 'LOW_RELEVANCE',
+                'bio_sentences': 4,
+                'trp_detail': 'LOW',
+                'aws_detail': 'MINIMAL',
+                'expertise_count': 8
+            }

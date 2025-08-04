@@ -16,7 +16,7 @@ class CVCustomizer:
         self.template_path = template_path
         self.document = Document(template_path)
     
-    def replace_placeholders(self, replacements: Dict[str, Union[str, List[str]]]):
+    def replace_placeholders(self, replacements: Dict[str, Union[str, list[str]]]):
         """replace placeholders throughout the document while preserving formatting"""
         # handle paragraphs
         for paragraph in self.document.paragraphs:
@@ -68,8 +68,12 @@ class CVCustomizer:
                     value_text = '\n• '.join(value)
                     value_text = '• ' + value_text if value else ''
                 else:
-                    # Ensure single line for bullet points to maintain formatting
-                    value_text = str(value).replace('\n', ' ').strip()
+                    # Handle expertise as a list for better formatting
+                    if key == 'expertise' and isinstance(value, list):
+                        value_text = '\n'.join(value)
+                    else:
+                        # Ensure single line for bullet points to maintain formatting
+                        value_text = str(value).replace('\n', ' ').strip()
                 
                 # if it's a simple replacement (placeholder is complete in one run)
                 for run in paragraph.runs:
