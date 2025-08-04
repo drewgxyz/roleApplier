@@ -217,7 +217,7 @@ class ExperienceAdapter:
             print(f"Error adapting experience: {e}")
             raise
     
-    def _filter_job_skills(self, job_skills: List[str]) -> List[str]:
+    def _filter_job_skills(self, job_skills: list[str]) -> list[str]:
         """Filter job skills to only include ones I actually have"""
         relevant_skills = []
         
@@ -241,7 +241,7 @@ class ExperienceAdapter:
         
         return relevant_skills
     
-    def _filter_job_skills_with_priority(self, job_skills: List[str]) -> List[str]:
+    def _filter_job_skills_with_priority(self, job_skills: list[str]) -> list[str]:
         """Filter job skills to only include ones I actually have, prioritized by tier"""
         relevant_skills_by_tier = {
             'tier_1_core': [],
@@ -276,7 +276,7 @@ class ExperienceAdapter:
         
         return prioritized_skills
     
-    def _assess_job_relevance(self, job_info: JobInfo, relevant_skills: List[str]) -> int:
+    def _assess_job_relevance(self, job_info: JobInfo, relevant_skills: list[str]) -> int:
         """Assess how relevant this job is to my experience (1-10 scale)"""
         relevance_score = 0
         
