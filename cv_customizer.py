@@ -16,7 +16,7 @@ class CVCustomizer:
         self.template_path = template_path
         self.document = Document(template_path)
     
-    def replace_placeholders(self, replacements: Dict[str, Union[str, list[str]]]):
+    def replace_placeholders(self, replacements: Dict[str, Union[str, List[str]]]):
         """replace placeholders throughout the document while preserving formatting"""
         # handle paragraphs
         for paragraph in self.document.paragraphs:
@@ -140,24 +140,29 @@ class CVCustomizer:
                 '--outdir',
                 str(Path(pdf_path).parent),
                 docx_path
-            ], check=True)
+            ], check=True, capture_output=True)
             
             # rename to desired output name if needed
             generated_pdf = Path(docx_path).with_suffix('.pdf')
             if generated_pdf.name != Path(pdf_path).name:
                 generated_pdf.rename(pdf_path)
                 
-        except subprocess.CalledProcessError:
-            print("libreoffice conversion failed. trying python-docx2pdf...")
-            # fallback to python-docx2pdf (windows only)
+        except FileNotFoundError:
+            raise Exception("LibreOffice not found. Install with: brew install --cask libreoffice")
+        except subprocess.CalledProcessError as e:
+            # fallback to python-docx2pdf (windows/mac only)
             try:
                 from docx2pdf import convert
                 convert(docx_path, pdf_path)
+                print("✓ Used docx2pdf as fallback")
             except ImportError:
-                print("please install libreoffice or docx2pdf for pdf conversion")
-                raise
+                raise Exception("PDF conversion failed. Install LibreOffice: brew install --cask libreoffice")
+            except Exception as docx2pdf_error:
+                raise Exception(f"PDF conversion failed: {docx2pdf_error}")
+        except Exception as e:
+            raise Exception(f"PDF conversion failed: {e}")
     
-    def customize_cv(self, job_data: Dict, output_name: str):
+    def customize_cv(self, job_data: Dict, output_name: str, job_info=None, original_job_text: str = ""):
         """main method to customize cv with job data"""
         # Validate content length to ensure 1-page format
         self._validate_content_length(job_data)
@@ -172,24 +177,45 @@ class CVCustomizer:
             else:
                 print(f"  {key}: {str(value)[:60]}...")
         
-        # create execution folder with today's date and time
+        # Create improved execution folder structure
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        execution_folder = f"outputs/{timestamp}_{output_name}"
+        
+        # Clean company and role names for folder
+        if job_info:
+            company_clean = re.sub(r'[^\w\s-]', '', job_info.company_name or 'Unknown_Company').replace(' ', '_')
+            role_clean = re.sub(r'[^\w\s-]', '', job_info.job_title or 'Software_Role').replace(' ', '_')
+            execution_folder = f"outputs/{timestamp}-{company_clean}-{role_clean}"
+        else:
+            execution_folder = f"outputs/{timestamp}-{output_name}"
         
         # create the execution folder
         os.makedirs(execution_folder, exist_ok=True)
         print(f"📁 Created execution folder: {execution_folder}")
         
+        # Save original job description
+        if original_job_text:
+            job_desc_path = f"{execution_folder}/Original_Job_Description.txt"
+            with open(job_desc_path, 'w', encoding='utf-8') as f:
+                f.write(f"Job Title: {job_info.job_title if job_info else 'Unknown'}\n")
+                f.write(f"Company: {job_info.company_name if job_info else 'Unknown'}\n")
+                f.write(f"Date Applied: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"Location: {job_info.location if job_info else 'Unknown'}\n")
+                f.write("\n" + "="*50 + "\n")
+                f.write("ORIGINAL JOB DESCRIPTION:\n")
+                f.write("="*50 + "\n\n")
+                f.write(original_job_text)
+            print(f"💾 Saved job description: {job_desc_path}")
+        
         # replace all placeholders
         self.replace_placeholders(job_data)
         
-        # save as word document in execution folder
-        docx_output = f"{execution_folder}/{output_name}.docx"
+        # save as word document with standard name
+        docx_output = f"{execution_folder}/Drew_Gillies_Software_Resume.docx"
         self.save_docx(docx_output)
         print(f"✓ Word document saved: {docx_output}")
         
-        # convert to pdf in execution folder
-        pdf_output = f"{execution_folder}/{output_name}.pdf"
+        # convert to pdf
+        pdf_output = f"{execution_folder}/Drew_Gillies_Software_Resume.pdf"
         try:
             self.convert_to_pdf(docx_output, pdf_output)
             print(f"✓ PDF generated: {pdf_output}")
@@ -198,7 +224,7 @@ class CVCustomizer:
             print("   Word document is still available")
             pdf_output = None
         
-        return docx_output, pdf_output
+        return docx_output, pdf_output, execution_folder
     
     def _validate_content_length(self, job_data: Dict):
         """Validate that content will fit on one page"""

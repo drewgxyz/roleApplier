@@ -8,6 +8,7 @@ from typing import Optional
 from job_parser import AIJobParser
 from experience_adapter import ExperienceAdapter
 from cv_customizer import CVCustomizer
+from cover_letter_generator import CoverLetterGenerator
 
 def load_config():
     """Load configuration from config/settings.json"""
@@ -108,9 +109,14 @@ class EnhancedCVCustomizer:
         self.cv_customizer = CVCustomizer(template_path)
         self.job_parser = AIJobParser(api_key)
         self.experience_adapter = ExperienceAdapter(api_key, original_cv_path, context_path, skills_config or {})
+        self.cover_letter_generator = CoverLetterGenerator(api_key)
     
     def create_cv_from_input_file(self, input_file: str, output_name: Optional[str] = None):
-        """Main method: provide input file with job description, get customized CV"""
+        """Main method: provide input file with job description, get customized CV and cover letter"""
+        
+        # Read original job text for logging
+        with open(input_file, 'r', encoding='utf-8') as f:
+            original_job_text = f.read().strip()
         
         print("🤖 Parsing job description with AI...")
         job_info = self.job_parser.parse_from_file(input_file)
@@ -128,7 +134,25 @@ class EnhancedCVCustomizer:
             output_name = f"CV_{company_safe}_{title_safe}"
         
         print("📝 Generating customized CV...")
-        return self.cv_customizer.customize_cv(adapted_experience, output_name)
+        docx_path, pdf_path, execution_folder = self.cv_customizer.customize_cv(
+            adapted_experience, output_name, job_info, original_job_text
+        )
+        
+        # Generate cover letter
+        print("💌 Generating tailored cover letter...")
+        try:
+            cover_letter_filename = f"Drew_Gillies_Cover_Letter_{job_info.company_name.replace(' ', '_')}.pdf"
+            cover_letter_path = f"{execution_folder}/{cover_letter_filename}"
+            
+            cover_letter_text = self.cover_letter_generator.generate_cover_letter(job_info, cover_letter_path)
+            print(f"✓ Cover letter generated: {cover_letter_path}")
+            
+        except Exception as e:
+            print(f"⚠️  Cover letter generation failed: {e}")
+            print("   CV files are still available")
+            cover_letter_path = None
+        
+        return docx_path, pdf_path, cover_letter_path
     
     def create_cv_from_job_description(self, job_description: str, output_name: Optional[str] = None):
         """Alternative method: provide job description text directly"""
@@ -252,19 +276,21 @@ def main():
     
     try:
         # Generate customized CV from input file
-        docx_path, pdf_path = customizer.create_cv_from_input_file(INPUT_FILE)
+        docx_path, pdf_path, cover_letter_path = customizer.create_cv_from_input_file(INPUT_FILE)
         
         print("\n" + "=" * 40)
         print("✅ CV customization complete!")
         print(f"📄 Word document: {docx_path}")
         if pdf_path:
             print(f"📑 PDF document: {pdf_path}")
+        if cover_letter_path:
+            print(f"💌 Cover letter: {cover_letter_path}")
         
         print("\n💡 Tips:")
-        print("   - Review the generated CV before sending")
+        print("   - Review the generated CV and cover letter before sending")
+        print("   - All files are ready for direct upload to job sites")
+        print("   - Original job description is saved for reference")
         print("   - Paste any raw job description into input file (no formatting needed)")
-        print("   - Add more project context in project_context.json")
-        print("   - The input file can be either raw text or JSON format")
         
     except Exception as e:
         print(f"\n❌ Error: {e}")
@@ -273,6 +299,7 @@ def main():
         print("2. Verify API key is set correctly in config/settings.json")
         print("3. Ensure template.docx has the correct placeholders")
         print("4. Make sure you have internet connection for AI processing")
+        print("5. Install missing dependencies: pip install reportlab")
 
 if __name__ == "__main__":
     main()
