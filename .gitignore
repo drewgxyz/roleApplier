@@ -1,5 +1,73 @@
+# API Keys and Configuration
+config/settings.json
+config/api_keys.json
+*.key
+
+# Personal CV Data
+data/orig.docx
+data/project_context.json
+data/input.json
+
+# Generated Outputs (optional - remove if you want to keep these)
+outputs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
-resources/*
-/resources/*
-outputs/*
-/outputs/*
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+resources/~$mplate.docx
+resources/orig.docx
+resources/template.docx

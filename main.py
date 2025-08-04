@@ -1,0 +1,232 @@
+import os
+import sys
+import json
+import re
+from pathlib import Path
+from typing import Optional
+
+from job_parser import AIJobParser
+from experience_adapter import ExperienceAdapter
+from cv_customizer import CVCustomizer
+
+def load_config():
+    """Load configuration from config/settings.json"""
+    config_dir = Path("config")
+    config_file = config_dir / "settings.json"
+    
+    # Create config directory if it doesn't exist
+    config_dir.mkdir(exist_ok=True)
+    
+    # Check if config file exists
+    if not config_file.exists():
+        # Create sample config file
+        sample_config = {
+            "api_key": "your_claude_api_key_here",
+            "template_path": "templates/template.docx",
+            "original_cv_path": "data/orig.docx",
+            "context_path": "data/project_context.json",
+            "input_file": "data/input.json"
+        }
+        
+        with open(config_file, 'w') as f:
+            json.dump(sample_config, f, indent=2)
+        
+        print(f"📁 Created config directory: {config_dir}")
+        print(f"⚙️  Created sample config file: {config_file}")
+        print("\n🔑 Please update config/settings.json with your Claude API key")
+        print("   Get your API key from: https://console.anthropic.com/")
+        return None
+    
+    # Load existing config
+    try:
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+        
+        # Validate required fields
+        if not config.get('api_key') or config['api_key'] == 'your_claude_api_key_here':
+            print("❌ Please set your Claude API key in config/settings.json")
+            print("   Get your API key from: https://console.anthropic.com/")
+            return None
+        
+        return config
+        
+    except json.JSONDecodeError as e:
+        print(f"❌ Error parsing config file: {e}")
+        print("   Please check config/settings.json for valid JSON format")
+        return None
+    except Exception as e:
+        print(f"❌ Error loading config: {e}")
+        return None
+
+class EnhancedCVCustomizer:
+    def __init__(self, template_path: str, api_key: str, original_cv_path: str = None, context_path: str = None):
+        """Enhanced CV customizer with AI integration"""
+        self.cv_customizer = CVCustomizer(template_path)
+        self.job_parser = AIJobParser(api_key)
+        self.experience_adapter = ExperienceAdapter(api_key, original_cv_path, context_path)
+    
+    def create_cv_from_input_file(self, input_file: str, output_name: Optional[str] = None):
+        """Main method: provide input file with job description, get customized CV"""
+        
+        print("🤖 Parsing job description with AI...")
+        job_info = self.job_parser.parse_from_file(input_file)
+        
+        print(f"📋 Parsed job: {job_info.job_title} at {job_info.company_name}")
+        print(f"🎯 Required skills: {', '.join(job_info.required_skills[:5])}{'...' if len(job_info.required_skills) > 5 else ''}")
+        
+        print("🔧 Adapting your experience to match job requirements...")
+        adapted_experience = self.experience_adapter.adapt_experience_to_job(job_info)
+        
+        # Generate output name if not provided
+        if not output_name:
+            company_safe = re.sub(r'[^\w\s-]', '', job_info.company_name or 'Company').replace(' ', '_')
+            title_safe = re.sub(r'[^\w\s-]', '', job_info.job_title or 'Position').replace(' ', '_')
+            output_name = f"CV_{company_safe}_{title_safe}"
+        
+        print("📝 Generating customized CV...")
+        return self.cv_customizer.customize_cv(adapted_experience, output_name)
+    
+    def create_cv_from_job_description(self, job_description: str, output_name: Optional[str] = None):
+        """Alternative method: provide job description text directly"""
+        
+        print("🤖 Parsing job description with AI...")
+        job_info = self.job_parser.parse_job_description(job_description)
+        
+        print(f"📋 Parsed job: {job_info.job_title} at {job_info.company_name}")
+        
+        print("🔧 Adapting your experience to match job requirements...")
+        adapted_experience = self.experience_adapter.adapt_experience_to_job(job_info)
+        
+        # Generate output name if not provided
+        if not output_name:
+            company_safe = re.sub(r'[^\w\s-]', '', job_info.company_name or 'Company').replace(' ', '_')
+            title_safe = re.sub(r'[^\w\s-]', '', job_info.job_title or 'Position').replace(' ', '_')
+            output_name = f"CV_{company_safe}_{title_safe}"
+        
+        print("📝 Generating customized CV...")
+        return self.cv_customizer.customize_cv(adapted_experience, output_name)
+
+def create_sample_input_file(input_file_path: str):
+    """Create a sample input file for user reference"""
+    sample_job_text = """Senior Python Developer - TechCorp London
+
+About the Role:
+We're looking for a Senior Python Developer to join our growing fintech team in London. You'll be working on our core trading platform that processes millions of transactions daily.
+
+Requirements:
+- 3+ years of experience with Python
+- Strong experience with AWS (Lambda, RDS, DynamoDB, SQS)
+- Experience with SQL and database optimization
+- Docker and containerization experience
+- Experience with microservices architecture
+- Financial services experience preferred
+- Knowledge of event-driven systems
+
+Responsibilities:
+- Develop and maintain Python applications for trading systems
+- Optimize database performance and queries
+- Build scalable microservices on AWS
+- Collaborate with cross-functional teams
+- Implement automated testing and CI/CD pipelines
+- Ensure system reliability and performance
+
+What we offer:
+- Competitive salary (£80k-120k)
+- Remote-friendly work environment
+- Stock options
+- Comprehensive health benefits
+
+Location: London, UK (Hybrid - 3 days in office)"""
+    
+    with open(input_file_path, 'w') as f:
+        f.write(sample_job_text)
+    
+    print(f"📄 Created sample {input_file_path}")
+    print("   You can now paste any raw job description directly into this file")
+    print("   No JSON formatting needed - just paste the entire job posting!")
+
+def main():
+    """Main application entry point"""
+    
+    print("🚀 AI-Powered CV Customizer")
+    print("=" * 40)
+    
+    # Load configuration
+    config = load_config()
+    if not config:
+        return
+    
+    # Get paths from config
+    CLAUDE_API_KEY = config['api_key']
+    TEMPLATE_PATH = config.get('template_path', 'templates/template.docx')
+    ORIGINAL_CV_PATH = config.get('original_cv_path', 'data/orig.docx')
+    CONTEXT_PATH = config.get('context_path', 'data/project_context.json')
+    INPUT_FILE = config.get('input_file', 'data/input.json')
+    
+    # Check for required files
+    missing_files = []
+    if not Path(TEMPLATE_PATH).exists():
+        missing_files.append(TEMPLATE_PATH)
+    if not Path(ORIGINAL_CV_PATH).exists():
+        missing_files.append(ORIGINAL_CV_PATH)
+    
+    if missing_files:
+        print(f"❌ Missing required files: {', '.join(missing_files)}")
+        print("   Make sure you have:")
+        print(f"   - {TEMPLATE_PATH}: Your CV template with placeholders")
+        print(f"   - {ORIGINAL_CV_PATH}: Your original CV for reference")
+        sys.exit(1)
+    
+    # Check for input file
+    if not Path(INPUT_FILE).exists():
+        print(f"📝 Input file '{INPUT_FILE}' not found.")
+        print("Creating a sample file for you...")
+        # Create data directory if it doesn't exist
+        Path(INPUT_FILE).parent.mkdir(exist_ok=True)
+        create_sample_input_file(INPUT_FILE)
+        print("\n💡 Next steps:")
+        print(f"   1. Open '{INPUT_FILE}' in any text editor")
+        print("   2. Replace the content with your job description (raw text)")
+        print("   3. Run the script again: python main.py")
+        return
+    
+    # Initialize the customizer
+    print("🔧 Initializing AI CV customizer...")
+    customizer = EnhancedCVCustomizer(
+        TEMPLATE_PATH, 
+        CLAUDE_API_KEY, 
+        ORIGINAL_CV_PATH, 
+        CONTEXT_PATH if Path(CONTEXT_PATH).exists() else None
+    )
+    
+    if Path(CONTEXT_PATH).exists():
+        print("✓ Loaded additional project context")
+    else:
+        print("ℹ️  No project context file found (optional)")
+    
+    try:
+        # Generate customized CV from input file
+        docx_path, pdf_path = customizer.create_cv_from_input_file(INPUT_FILE)
+        
+        print("\n" + "=" * 40)
+        print("✅ CV customization complete!")
+        print(f"📄 Word document: {docx_path}")
+        if pdf_path:
+            print(f"📑 PDF document: {pdf_path}")
+        
+        print("\n💡 Tips:")
+        print("   - Review the generated CV before sending")
+        print("   - Paste any raw job description into input file (no formatting needed)")
+        print("   - Add more project context in project_context.json")
+        print("   - The input file can be either raw text or JSON format")
+        
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        print("\nTroubleshooting:")
+        print("1. Check that your input file has valid job description")
+        print("2. Verify API key is set correctly in config/settings.json")
+        print("3. Ensure template.docx has the correct placeholders")
+        print("4. Make sure you have internet connection for AI processing")
+
+if __name__ == "__main__":
+    main()

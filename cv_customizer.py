@@ -43,13 +43,23 @@ class CVCustomizer:
         # get full paragraph text
         full_text = paragraph.text
         
+        # Flatten nested dict structure for easier replacement
+        flat_replacements = {}
+        for key, value in replacements.items():
+            if isinstance(value, dict):
+                # Handle nested dict like "t": {"skills": "...", "bp1": "..."}
+                for subkey, subvalue in value.items():
+                    flat_replacements[f"{key}.{subkey}"] = subvalue
+            else:
+                flat_replacements[key] = value
+        
         # check if any placeholders exist in this paragraph
-        has_placeholder = any(f"{{{{{key}}}}}" in full_text for key in replacements)
+        has_placeholder = any(f"{{{{{key}}}}}" in full_text for key in flat_replacements)
         if not has_placeholder:
             return
         
         # process each placeholder
-        for key, value in replacements.items():
+        for key, value in flat_replacements.items():
             placeholder = f"{{{{{key}}}}}"
             
             if placeholder in full_text:
@@ -58,7 +68,8 @@ class CVCustomizer:
                     value_text = '\n• '.join(value)
                     value_text = '• ' + value_text if value else ''
                 else:
-                    value_text = str(value)
+                    # Ensure single line for bullet points to maintain formatting
+                    value_text = str(value).replace('\n', ' ').strip()
                 
                 # if it's a simple replacement (placeholder is complete in one run)
                 for run in paragraph.runs:
@@ -144,9 +155,22 @@ class CVCustomizer:
     
     def customize_cv(self, job_data: Dict, output_name: str):
         """main method to customize cv with job data"""
+        # Validate content length to ensure 1-page format
+        self._validate_content_length(job_data)
+        
+        # Debug: Print the data structure being passed
+        print("🔧 CV data structure:")
+        for key, value in job_data.items():
+            if isinstance(value, dict):
+                print(f"  {key}:")
+                for subkey, subvalue in value.items():
+                    print(f"    {subkey}: {str(subvalue)[:60]}...")
+            else:
+                print(f"  {key}: {str(value)[:60]}...")
+        
         # create execution folder with today's date and time
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        execution_folder = f"outputs/{timestamp}--"
+        execution_folder = f"outputs/{timestamp}_{output_name}"
         
         # create the execution folder
         os.makedirs(execution_folder, exist_ok=True)
@@ -162,65 +186,39 @@ class CVCustomizer:
         
         # convert to pdf in execution folder
         pdf_output = f"{execution_folder}/{output_name}.pdf"
-        self.convert_to_pdf(docx_output, pdf_output)
-        print(f"✓ PDF generated: {pdf_output}")
+        try:
+            self.convert_to_pdf(docx_output, pdf_output)
+            print(f"✓ PDF generated: {pdf_output}")
+        except Exception as e:
+            print(f"⚠️  PDF conversion failed: {e}")
+            print("   Word document is still available")
+            pdf_output = None
         
         return docx_output, pdf_output
-
-
-def main():
-    """example usage of the cv customizer"""
     
-    # example job posting data
-    job_data = {
-        "job_title": "Senior Python Developer",
-        "company_name": "TechCorp Solutions",
-        "location": "San Francisco, CA",
-        "skills": ["Python", "Django", "PostgreSQL", "Docker", "AWS"],
-        "years_experience": "5+",
-        "experience_highlights": [
-            "Led development of microservices architecture serving 1M+ users",
-            "Reduced API response time by 60% through optimization",
-            "Mentored team of 4 junior developers"
-        ],
-        "education_focus": "Computer Science",
-        "contact_email": "john.doe@email.com",
-        "contact_phone": "+1-555-0123"
-    }
-    
-    customizer = CVCustomizer("resources/template.docx")
-    
-    # generate customized cv
-    customizer.customize_cv(job_data, "CV_TechCorp_Senior_Python")
-    
-    # i can also load data from json file
-    # with open('job_posting.json', 'r') as f:
-    #     job_data = json.load(f)
-    # customizer.customize_cv(job_data, "CV_CustomJob")
-
-
-if __name__ == "__main__":
-    main()
-
-
-# === automation script ===
-# save this as 'batch_customize.py' for bulk processing
-
-def batch_process_cvs(template_path: str, jobs_folder: str):
-    """process multiple job applications from json files"""
-    jobs_path = Path(jobs_folder)
-    
-    for json_file in jobs_path.glob("*.json"):
-        print(f"\nProcessing: {json_file.name}")
+    def _validate_content_length(self, job_data: Dict):
+        """Validate that content will fit on one page"""
+        warnings = []
         
-        with open(json_file, 'r') as f:
-            job_data = json.load(f)
+        # Check bio length
+        bio = job_data.get('bio', '')
+        if len(bio) > 400:
+            warnings.append(f"Bio is too long ({len(bio)} chars, recommend <400)")
         
-        # create output name from company and position
-        company = job_data.get('company_name', 'Unknown').replace(' ', '_')
-        position = job_data.get('job_title', 'Position').replace(' ', '_')
-        output_name = f"CV_{company}_{position}"
+        # Check bullet points
+        for section in ['t', 'a']:
+            if section in job_data:
+                for i in range(1, 5):  # bp1-bp4 for t, bp1-bp3 for a
+                    bp_key = f'bp{i}'
+                    if bp_key in job_data[section]:
+                        bp_text = job_data[section][bp_key]
+                        if len(bp_text) > 120:
+                            warnings.append(f"{section}.{bp_key} is too long ({len(bp_text)} chars, recommend <120)")
         
-        # customize cv
-        customizer = CVCustomizer(template_path)
-        customizer.customize_cv(job_data, output_name)
+        if warnings:
+            print("⚠️  Content length warnings:")
+            for warning in warnings:
+                print(f"   - {warning}")
+            print("   CV may exceed one page!")
+        else:
+            print("✓ Content length validation passed")
