@@ -23,7 +23,7 @@ def load_config():
         # Update config with enhanced skills structure
         sample_config = {
             "api_key": "your_claude_api_key_here",
-            "template_path": "templates/template.docx",
+            "template_path": "templates/template copy.docx",
             "original_cv_path": "data/orig.docx",
             "context_path": "data/project_context.json",
             "input_file": "data/input.json",
@@ -39,8 +39,7 @@ def load_config():
                     "tier_3_specialist": [
                         "RDS", "DynamoDB", "Lambda", "SQS", "S3", "EC2", "ECS",
                         "MySQL", "MongoDB", "Redis", "Elasticsearch", "SQLite",
-                        "Jenkins", "GitHub Actions", "Prometheus", "Grafana",
-                        "ELK Stack", "CloudWatch"
+                        "Jenkins", "GitHub Actions", "CloudWatch"
                     ],
                     "tier_4_tools": [
                         "Pandas", "NumPy", "Ubuntu", "CentOS", "macOS", "Windows Server",
@@ -177,6 +176,25 @@ class EnhancedCVCustomizer:
                     print("❌ Aborting due to critical error with no data generated.")
                     return None, None, None # Exit if the first attempt fails catastrophically
 
+        # --- Split Expertise List for Two-Column Layout ---
+        if final_experience_data and 'expertise' in final_experience_data:
+            print("🪓 Splitting expertise list for two-column format...")
+            original_expertise = final_experience_data.get('expertise', [])
+            
+            # Calculate the midpoint, ensuring the first list gets the extra item if the total is odd
+            midpoint = (len(original_expertise) + 1) // 2
+            
+            # Create the two new lists
+            expertise1 = original_expertise[:midpoint]
+            expertise2 = original_expertise[midpoint:]
+            
+            # Update the data dictionary with the two new keys for the CVCustomizer
+            final_experience_data['expertise'] = expertise1
+            final_experience_data['expertise2'] = expertise2
+            
+            print(f"   - Column 1 ({{{{expertise}}}}): {len(expertise1)} skills")
+            print(f"   - Column 2 ({{{{expertise2}}}}): {len(expertise2)} skills")
+
         # --- Generate Final Documents ---
         print("\n📝 Generating FINAL documents...")
         docx_path, pdf_path, execution_folder = self.cv_customizer.customize_cv(
@@ -265,7 +283,7 @@ def main():
     
     # Get paths from config
     CLAUDE_API_KEY = config['api_key']
-    TEMPLATE_PATH = config.get('template_path', 'templates/template.docx')
+    TEMPLATE_PATH = config.get('template_path', 'templates/template copy.docx')
     ORIGINAL_CV_PATH = config.get('original_cv_path', 'data/orig.docx')
     CONTEXT_PATH = config.get('context_path', 'data/project_context.json')
     INPUT_FILE = config.get('input_file', 'data/input.json')

@@ -284,7 +284,7 @@ Edit `config/settings.json`:
 ```
 
 ### **Template Requirements**
-Your `template.docx` needs these placeholders:
+Your `template copy.docx` needs these placeholders:
 - `{{bio}}` - Professional summary
 - `{{expertise}}` - Dynamic skills list
 - `{{t.skills}}` - T. Rowe Price tech stack

@@ -149,12 +149,17 @@ class ExperienceAdapter:
         - Use metrics, team sizes, or technical details from context when they strengthen the bullet point
         - Don't use context that's irrelevant to the target job
         """
+
+        # Sanitize the job title to remove forbidden keywords before sending to the AI
+        forbidden_keywords = r'\b(Senior|Lead|Principal|Staff|I|II|III|IV|DevOps)\b'
+        sanitized_title = re.sub(forbidden_keywords, '', job_info.job_title, flags=re.IGNORECASE).strip()
         
         prompt = f"""
         I need to customize my CV for this specific job opportunity. I want to keep the exact same structure but adapt the content to highlight relevant skills and experiences.
 
         TARGET JOB:
-        - Position: {job_info.job_title} at {job_info.company_name} (IF Senior is in the name, do not include this - I can only ever be mid level or non-senior)
+        - Position: {sanitized_title} at {job_info.company_name}
+        - Required Skills: {', '.join(job_info.required_skills)}
         - Required Skills: {', '.join(job_info.required_skills)}
         - Preferred Skills: {', '.join(job_info.preferred_skills)}
         - Key Responsibilities: {', '.join(job_info.key_responsibilities)}
@@ -307,6 +312,10 @@ class ExperienceAdapter:
         {json.dumps(self.additional_context, indent=2)}
         """
         
+        # Sanitize the job title to remove forbidden keywords before sending to the AI
+        forbidden_keywords = r'\b(Senior|Lead|Principal|Staff|I|II|III|IV|DevOps)\b'
+        sanitized_title = re.sub(forbidden_keywords, '', job_info.job_title, flags=re.IGNORECASE).strip()
+
         # The prompt remains the same, but now it uses the passed-in strategy
         prompt = f"""
         ENHANCED CV GENERATION - ADAPTIVE STRATEGY
@@ -314,7 +323,7 @@ class ExperienceAdapter:
         I need to create the STRONGEST possible CV for this specific job, adhering to the provided adaptive content strategy.
 
         TARGET JOB:
-        - Position: {job_info.job_title} at {job_info.company_name}
+        - Position: {sanitized_title} at {job_info.company_name}
         - Required Skills: {', '.join(job_info.required_skills)}
 
         {skills_section}
