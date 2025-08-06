@@ -27,6 +27,32 @@ class ExperienceAdapter:
             self.skill_tiers = {'tier_1_core': self.my_skills}
             
         self.blacklisted_skills = skills_config.get('blacklisted_skills', [])
+
+
+    def _get_adaptive_content_strategy(self, current_strategy: dict) -> dict:
+        """Create a slightly less detailed content strategy to reduce page usage."""
+        new_strategy = current_strategy.copy()
+        print("🔧 Adapting content strategy to reduce length...")
+
+        # Reduce content in a prioritized order
+        if new_strategy['expertise_count'] > 12:
+            new_strategy['expertise_count'] -= 2
+            print(f"   - Reduced expertise count to {new_strategy['expertise_count']}")
+        elif new_strategy['trp_detail'] == 'MAXIMUM':
+            new_strategy['trp_detail'] = 'HIGH'
+            print("   - Reduced T. Rowe Price detail to HIGH")
+        elif new_strategy['aws_detail'] == 'HIGH':
+            new_strategy['aws_detail'] = 'MEDIUM'
+            print("   - Reduced AWS detail to MEDIUM")
+        elif new_strategy['bio_sentences'] > 2:
+            new_strategy['bio_sentences'] -= 1
+            print(f"   - Reduced bio sentences to {new_strategy['bio_sentences']}")
+        else:
+            # Fallback if everything is already minimal
+            new_strategy['expertise_count'] -= 1
+            print(f"   - Fallback: Reduced expertise count to {new_strategy['expertise_count']}")
+            
+        return new_strategy
     
     def _extract_cv_data(self, cv_path: str) -> Dict:
         """Extract experience data from original CV document"""
@@ -230,15 +256,25 @@ class ExperienceAdapter:
             print(f"Error adapting experience: {e}")
             raise
     
-    def regenerate_with_enhanced_detail(self, job_info: JobInfo, current_data: Dict) -> Dict:
-        """Regenerate CV with enhanced detail levels for maximum impact"""
+
+    def regenerate_with_enhanced_detail(self, job_info: JobInfo, current_data: Dict, strategy: dict = None) -> Dict:
+        """
+        Regenerate CV with enhanced detail levels for maximum impact.
+        Accepts an optional strategy to be used by the adaptive loop.
+        """
         
-        # Get current relevance assessment
-        relevant_skills = self._filter_job_skills_with_priority(job_info.required_skills + job_info.preferred_skills)
-        relevance_score = self._assess_job_relevance(job_info, relevant_skills)
-        
-        # Enhanced strategy - boost detail levels
-        enhanced_strategy = self._get_enhanced_content_strategy(relevance_score)
+        # Use the provided strategy if it exists; otherwise, generate the default enhanced one.
+        # This makes the method compatible with the new adaptive loop in main.py.
+        if strategy:
+            enhanced_strategy = strategy
+            # We still need relevant skills and score for the prompt context.
+            relevant_skills = self._filter_job_skills_with_priority(job_info.required_skills + job_info.preferred_skills)
+            relevance_score = self._assess_job_relevance(job_info, relevant_skills)
+        else:
+            # Fallback for old behavior if no strategy is passed
+            relevant_skills = self._filter_job_skills_with_priority(job_info.required_skills + job_info.preferred_skills)
+            relevance_score = self._assess_job_relevance(job_info, relevant_skills)
+            enhanced_strategy = self._get_enhanced_content_strategy(relevance_score)
         
         # Include skills filtering information in context
         skills_section = f"""
@@ -254,43 +290,32 @@ class ExperienceAdapter:
         JOB RELEVANT SKILLS (prioritized by tier):
         {', '.join(relevant_skills)}
         
-        ENHANCED CONTENT STRATEGY (MAXIMIZE DETAIL):
+        CONTENT STRATEGY:
         Job Relevance Score: {relevance_score}/10
-        Content Strategy: {enhanced_strategy['name']} (ENHANCED FOR MAXIMUM IMPACT)
+        Strategy Name: {enhanced_strategy['name']}
         Bio Length: {enhanced_strategy['bio_sentences']} sentences
         T. Rowe Price Detail Level: {enhanced_strategy['trp_detail']}
         AWS Detail Level: {enhanced_strategy['aws_detail']}
         Expertise Skills Count: {enhanced_strategy['expertise_count']}
-        
-        GOAL: Use available page space to create the STRONGEST possible CV for this role.
         """
         
         # Include additional context in the prompt
         context_section = ""
         if self.additional_context:
             context_section = f"""
-        ADDITIONAL PROJECT CONTEXT (use extensively for enhanced detail):
+        ADDITIONAL PROJECT CONTEXT (use extensively for detail):
         {json.dumps(self.additional_context, indent=2)}
-        
-        Instructions for enhanced context usage:
-        - Use rich technical details from context to strengthen bullet points
-        - Include specific metrics, team sizes, and technical achievements
-        - Mention multiple relevant technologies per bullet point when appropriate
-        - Draw from business impact and technical complexity details
-        - Use quantified results extensively
         """
         
+        # The prompt remains the same, but now it uses the passed-in strategy
         prompt = f"""
-        ENHANCED CV GENERATION - MAXIMIZE IMPACT FOR THIS ROLE
+        ENHANCED CV GENERATION - ADAPTIVE STRATEGY
 
-        I need to create the STRONGEST possible CV for this specific job. I have extra page space available, so I can include more technical detail and impact metrics.
+        I need to create the STRONGEST possible CV for this specific job, adhering to the provided adaptive content strategy.
 
         TARGET JOB:
         - Position: {job_info.job_title} at {job_info.company_name}
         - Required Skills: {', '.join(job_info.required_skills)}
-        - Preferred Skills: {', '.join(job_info.preferred_skills)}
-        - Key Responsibilities: {', '.join(job_info.key_responsibilities)}
-        - Industry: {job_info.industry}
 
         {skills_section}
 
@@ -299,96 +324,44 @@ class ExperienceAdapter:
         
         {context_section}
 
-        ENHANCED INSTRUCTIONS (MAXIMIZE IMPACT):
-        1. MUST still fit on exactly 1 page - but use available space fully
-        2. Bio: Use exactly {enhanced_strategy['bio_sentences']} sentences with rich detail
-        3. T. Rowe Price bullets: {enhanced_strategy['trp_detail']} detail level
-        4. AWS bullets: {enhanced_strategy['aws_detail']} detail level  
-        5. Expertise: Include exactly {enhanced_strategy['expertise_count']} skills
-        6. Tech stacks: Include MORE technologies (10-12) from MY ACTUAL SKILLS list
-        7. NEVER mention any skills from the BLACKLISTED SKILLS list
-        8. Use extensive metrics, technical details, and specific achievements
-        9. Include multiple technologies per bullet point when relevant
-        10. Draw heavily from additional context for technical depth
+        CRITICAL INSTRUCTIONS - ADAPT TO THE PROVIDED STRATEGY:
+        1. Bio: Use exactly {enhanced_strategy['bio_sentences']} sentences.
+        2. T. Rowe Price bullets: Use '{enhanced_strategy['trp_detail']}' detail level.
+        3. AWS bullets: Use '{enhanced_strategy['aws_detail']}' detail level.
+        4. Expertise: Include exactly {enhanced_strategy['expertise_count']} skills.
+        5. CRITICAL: For the "expertise" list, YOU MUST ONLY USE skills from the 'MY ACTUAL SKILLS' or 'JOB RELEVANT SKILLS' lists provided earlier. DO NOT invent conceptual categories like 'Python Development'. Use the actual skill names like 'Python', 'FastAPI', etc.
 
-        JOB TITLE RESTRICTIONS (CRITICAL):
-        - NEVER call me "Senior" anything in the bio
-        - Acceptable titles ONLY: "Software Engineer", "Software Developer", "Mid-level Software Engineer", "Mid-level Software Developer"
-
-        ENHANCED DETAIL LEVEL DEFINITIONS (STRICT REQUIREMENTS):
-        - MAXIMUM: 70-90 words, 4-5 specific technologies from tech stack, extensive metrics, technical depth, team context
-        - HIGH: 55-70 words, include 3-4 technologies from tech stack, metrics, and technical details
-        - MEDIUM: 40-55 words, include 2-3 technologies from tech stack and quantified outcomes
-        - LOW: 30-45 words, focus on impact and 2 relevant technologies from tech stack
-        - MINIMAL: 25-35 words, essential impact with 1-2 tech stack technologies
-
-        T. ROWE PRICE BULLET POINTS - CRITICAL LENGTH REQUIREMENTS:
-        - Each T. Rowe Price bullet point MUST be 70-90 words minimum
-        - MANDATORY: Include 4-5 technologies from tech stack in each bullet
-        - Include extensive technical context from project_context.json
-        - Add specific metrics, timelines, team collaboration details
-        - Explain the technical architecture and implementation approach
-        - Mention business impact with quantified results
-        - This is NON-NEGOTIABLE - do not write shorter bullet points
-
-        BULLET POINT REQUIREMENTS (ENHANCED - CRITICAL):
-        - MANDATORY: Include 3-5 specific technologies from the tech stack in EVERY bullet point
-        - Add quantified business impact and detailed technical metrics from project context
-        - Use technical terminology that matches the job requirements exactly
-        - Include team collaboration, scale, and architectural decisions
-        - Mention compliance, performance improvements, and technical challenges solved
-        - Draw extensively from additional context for rich technical detail
-        - Each bullet should tell a complete story of technical achievement with specific tech stack
-        - NEVER write a bullet point without mentioning tech stack technologies
-        - Example: "Architected production-grade Python data migration tool using SQLAlchemy ORM, PostgreSQL, and Docker containerization, implementing comprehensive rollback safety with Redis caching and FastAPI endpoints..."
-
-        TECH STACK INTEGRATION (MANDATORY):
-        - Every bullet point MUST mention at least 2-3 technologies from its section's tech stack
-        - If tech stack lists "Python, FastAPI, PostgreSQL, Redis, Docker, AWS", then EVERY bullet point must use these
-        - Weave technologies naturally into the technical narrative
-        - Don't just list technologies - explain HOW they were used technically
-
-        Return ONLY a JSON object with these exact fields:
+        Return ONLY a JSON object with this exact nested structure. This is non-negotiable.
         {{
-            "bio": "Enhanced bio with exactly {enhanced_strategy['bio_sentences']} sentences - rich technical detail but NEVER 'Senior' titles",
-            "expertise": ["Prioritized list: programming languages first, then job-relevant skills in order of importance - exactly {enhanced_strategy['expertise_count']} skills total"],
+            "bio": "The updated bio paragraph.",
+            "expertise": ["ULTRA-CRITICAL: A list of exactly {enhanced_strategy['expertise_count']} skills. YOU MUST ONLY use skills from the 'MY ACTUAL SKILLS' list (e.g., 'Python', 'FastAPI', 'Docker'). DO NOT invent conceptual categories like 'Python Development' or 'Database Architecture' under any circumstances."],
             "t": {{
-                "skills": "Enhanced tech stack list (10-12 technologies from MY ACTUAL SKILLS)",
-                "bp1": "MANDATORY 70-90 words: {enhanced_strategy['trp_detail']} detail bullet point - MUST mention 4-5 technologies from tech stack with extensive technical context, metrics, and implementation details from project context",
-                "bp2": "MANDATORY 70-90 words: {enhanced_strategy['trp_detail']} detail bullet point - MUST mention 4-5 technologies from tech stack with comprehensive technical depth, business impact, and architectural decisions", 
-                "bp3": "MANDATORY 70-90 words: {enhanced_strategy['trp_detail']} detail bullet point - MUST mention 4-5 technologies from tech stack with specific achievements, technical challenges solved, and quantified outcomes",
-                "bp4": "MANDATORY 70-90 words: {enhanced_strategy['trp_detail']} detail bullet point - MUST mention 4-5 technologies from tech stack with detailed technical implementation, team collaboration, and measurable business results"
+                "skills": "ULTRA-CRITICAL: A single comma-separated STRING of technologies (e.g., 'Python, AWS, Docker'). The value for this key MUST be a string, NOT a list.",
+                "bp1": "The first bullet point for T. Rowe Price.",
+                "bp2": "The second bullet point for T. Rowe Price.",
+                "bp3": "The third bullet point for T. Rowe Price.",
+                "bp4": "The fourth bullet point for T. Rowe Price."
             }},
             "a": {{
-                "skills": "Enhanced tech stack list (8-10 technologies from MY ACTUAL SKILLS)",
-                "bp1": "{enhanced_strategy['aws_detail']} detail bullet point - MUST mention 2-3 technologies from tech stack with scale metrics",
-                "bp2": "{enhanced_strategy['aws_detail']} detail bullet point - MUST mention 2-3 technologies from tech stack with scope and impact",
-                "bp3": "{enhanced_strategy['aws_detail']} detail bullet point - MUST mention 2-3 technologies from tech stack with technical achievements"
+                "skills": "ULTRA-CRITICAL: A single comma-separated STRING of technologies (e.g., 'Python, AWS, Docker'). The value for this key MUST be a string, NOT a list.",
+                "bp1": "The first bullet point for AWS.",
+                "bp2": "The second bullet point for AWS.",
+                "bp3": "The third bullet point for AWS."
             }}
         }}
-
-        EXPERTISE SECTION PRIORITIZATION (CRITICAL):
-        1. ALWAYS start with programming languages: Python, Java, JavaScript (in that order if relevant)
-        2. Then add job-relevant frameworks/technologies in order of importance to this role
-        3. Then add cloud platforms (AWS, etc.) if relevant
-        4. Then add databases and tools in order of job relevance
-        5. Fill remaining slots with most relevant skills from lower tiers
-        
-        Example for a Python/Flask role: ["Python", "Java", "Flask", "FastAPI", "AWS", "PostgreSQL", "Docker", "Redis", ...]
-        Example for a Java/Spring role: ["Java", "Python", "Spring Boot", "AWS", "PostgreSQL", "Docker", ...]
-
-        CRITICAL: Create the STRONGEST possible CV for this role. Use available space for maximum technical impact.
-        Technologies in tech stacks MUST appear in bullet points. Include extensive technical detail and metrics.
         """
-
+        
         try:
             response = self.client.messages.create(
                 model="claude-3-5-sonnet-20241022",
-                max_tokens=2500,  # Increased for enhanced detail
+                max_tokens=2500,
                 messages=[{"role": "user", "content": prompt}]
             )
             
             response_text = response.content[0].text
+            # Clean up potential trailing commas before parsing
+            response_text = re.sub(r',\s*([\}\]])', r'\1', response_text)
+            
             json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
             
             if json_match:
@@ -398,21 +371,22 @@ class ExperienceAdapter:
                 
         except Exception as e:
             print(f"Error in enhanced regeneration: {e}")
-            # Return original data as fallback
+            # Return original data as fallback if something goes wrong
             return current_data
     
     def _validate_bullet_point_length(self, cv_data: Dict) -> Dict:
         """Validate T. Rowe Price bullet points meet minimum length requirements"""
         issues = []
-        
+        MIN_WORD_COUNT = 60  # <--- CHANGED FROM 70 to 60
+
         if 't' in cv_data and isinstance(cv_data['t'], dict):
             for bp_key in ['bp1', 'bp2', 'bp3', 'bp4']:
                 if bp_key in cv_data['t']:
                     bp_text = cv_data['t'][bp_key]
                     word_count = len(bp_text.split())
                     
-                    if word_count < 70:
-                        issues.append(f"T. Rowe Price {bp_key}: {word_count} words (minimum 70 required)")
+                    if word_count < MIN_WORD_COUNT:
+                        issues.append(f"T. Rowe Price {bp_key}: {word_count} words (minimum {MIN_WORD_COUNT} required)")
         
         return {
             'has_issues': len(issues) > 0,
@@ -436,61 +410,61 @@ class ExperienceAdapter:
         
         # Ultra-strict prompt for length enforcement
         strict_prompt = f"""
-        CRITICAL LENGTH ENFORCEMENT - T. ROWE PRICE BULLET POINTS
-
-        Previous attempt failed length requirements. This is attempt #{retry_count + 1}.
+        CRITICAL FAILURE ANALYSIS: The previous attempt failed because the bullet points for T. Rowe Price were too short. Your task is to fix this. This is a non-negotiable instruction.
 
         TARGET JOB:
-        - Position: {job_info.job_title} at {job_info.company_name}
+        - Position: {job_info.job_title}
         - Required Skills: {', '.join(job_info.required_skills)}
-        - Key Responsibilities: {', '.join(job_info.key_responsibilities)}
 
-        MY EXPERIENCE AND CONTEXT:
-        {json.dumps(self.original_cv_data, indent=2)}
+        DETAILED PROJECT CONTEXT (USE THIS EXTENSIVELY):
         {json.dumps(self.additional_context, indent=2) if self.additional_context else ""}
 
-        ULTRA-STRICT REQUIREMENTS FOR T. ROWE PRICE BULLET POINTS:
-        1. Each T. Rowe Price bullet point MUST be EXACTLY 70-90 words
-        2. Count every word - do not submit anything under 70 words
-        3. Include 4-5 specific technologies from the tech stack in EVERY bullet point
-        4. Use extensive technical details from the project context
-        5. Include specific metrics, timelines, team sizes, technical challenges
-        6. Mention architectural decisions and implementation approaches
-        7. Add business impact with quantified results
+        MANDATORY INSTRUCTIONS FOR T. ROWE PRICE BULLET POINTS:
+        1.  **WORD COUNT: 70-90 words. EACH. This is an absolute, non-negotiable requirement.** Do not generate anything shorter.
+        2.  **TECHNICAL SYNTHESIS:** To achieve this length, you MUST synthesize information. For each bullet point, combine details from the 'detailed_description', 'technical_stack', 'challenges_solved', and 'business_impact' sections of the provided context.
+        3.  **TECHNOLOGY INTEGRATION:** You MUST mention 4-5 specific technologies from the tech stack in each bullet point. Weave them into the narrative naturally.
+        4.  **EXAMPLE OF SYNTHESIS:** For 'bp1', you could start with the description, then mention the 'SQLAlchemy ORM', 'PostgreSQL', and 'Docker' from the stack, explain how they solved the 'complex foreign key relationships' challenge, and quantify the '95% reduction in manual migration time' as the impact.
 
-        MANDATORY WORD COUNT: 70-90 words per T. Rowe Price bullet point
-        DO NOT SUBMIT ANYTHING SHORTER THAN 70 WORDS
+        ---
+        PERFECT EXAMPLE BULLET POINT (78 words):
+        "Architected and led the development of a production-grade Python data migration tool using the FastAPI framework, leveraging SQLAlchemy for complex relational data mapping in PostgreSQL and utilizing Redis for caching to ensure rollback safety. This tool, containerized with Docker and deployed on AWS, automated the synchronization of data across DEV/STAGE/PROD environments, reducing manual migration time by 95% and eliminating data integrity errors through comprehensive automated validation scripts, ensuring referential integrity for critical financial reporting systems."
+        ---
 
-        Return ONLY a JSON object:
+        Now, regenerate the ENTIRE JSON object. Adhere strictly to the 70-90 word count for every T. Rowe Price bullet point.
+
+        Return ONLY a JSON object with this exact nested structure. This is non-negotiable.
         {{
-            "bio": "Enhanced bio with exactly {enhanced_strategy['bio_sentences']} sentences",
-            "expertise": ["Exactly {enhanced_strategy['expertise_count']} skills"],
+            "bio": "The updated bio paragraph with exactly {enhanced_strategy['bio_sentences']} sentences.",
+            "expertise": ["CRITICAL: A list of exactly {enhanced_strategy['expertise_count']} skills. YOU MUST ONLY USE skills from the 'MY ACTUAL SKILLS' list. DO NOT invent conceptual categories like 'Python Development'. Use the actual skill names like 'Python', 'FastAPI', 'Docker', etc."],
             "t": {{
-                "skills": "Tech stack list with 10-12 technologies",
-                "bp1": "EXACTLY 70-90 words with 4-5 tech stack technologies and extensive context",
-                "bp2": "EXACTLY 70-90 words with 4-5 tech stack technologies and comprehensive details",
-                "bp3": "EXACTLY 70-90 words with 4-5 tech stack technologies and specific achievements",
-                "bp4": "EXACTLY 70-90 words with 4-5 tech stack technologies and measurable results"
+                "skills": "CRITICAL: A single comma-separated string of technologies (e.g., 'Python, AWS, Docker'). DO NOT use a JSON list of strings.",
+                "bp1": "The first bullet point for T. Rowe Price, written at '{enhanced_strategy['trp_detail']}' detail.",
+                "bp2": "The second bullet point for T. Rowe Price, written at '{enhanced_strategy['trp_detail']}' detail.",
+                "bp3": "The third bullet point for T. Rowe Price, written at '{enhanced_strategy['trp_detail']}' detail.",
+                "bp4": "The fourth bullet point for T. Rowe Price, written at '{enhanced_strategy['trp_detail']}' detail."
             }},
             "a": {{
-                "skills": "Tech stack list with 8-10 technologies",
-                "bp1": "40-55 words with 2-3 tech stack technologies",
-                "bp2": "40-55 words with 2-3 tech stack technologies", 
-                "bp3": "40-55 words with 2-3 tech stack technologies"
+                "skills": "CRITICAL: A single comma-separated string of technologies (e.g., 'Python, AWS, Docker'). DO NOT use a JSON list of strings.",
+                "bp1": "The first bullet point for AWS, written at '{enhanced_strategy['aws_detail']}' detail.",
+                "bp2": "The second bullet point for AWS, written at '{enhanced_strategy['aws_detail']}' detail.",
+                "bp3": "The third bullet point for AWS, written at '{enhanced_strategy['aws_detail']}' detail."
             }}
         }}
-
-        CRITICAL: T. Rowe Price bullet points must be 70-90 words each. This is non-negotiable.
         """
 
         try:
             response = self.client.messages.create(
                 model="claude-3-5-sonnet-20241022",
-                max_tokens=3000,  # Increased for longer content
+                max_tokens=3000,
+                temperature=0.7,  # <--- ADD THIS LINE. Increases creativity and verbosity.
                 messages=[{"role": "user", "content": strict_prompt}]
             )
             
             response_text = response.content[0].text
+            
+            # Clean up potential trailing commas before parsing
+            response_text = re.sub(r',\s*([\}\]])', r'\1', response_text) # <--- ADD THIS LINE
+            
             json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
             
             if json_match:

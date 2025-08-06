@@ -38,52 +38,52 @@ class CVCustomizer:
             for paragraph in section.footer.paragraphs:
                 self._replace_in_paragraph(paragraph, replacements)
     
+# In cv_customizer.py
+
     def _replace_in_paragraph(self, paragraph, replacements):
         """replace placeholders in a paragraph while preserving run formatting"""
-        # get full paragraph text
         full_text = paragraph.text
         
-        # Flatten nested dict structure for easier replacement
         flat_replacements = {}
         for key, value in replacements.items():
             if isinstance(value, dict):
-                # Handle nested dict like "t": {"skills": "...", "bp1": "..."}
                 for subkey, subvalue in value.items():
                     flat_replacements[f"{key}.{subkey}"] = subvalue
             else:
                 flat_replacements[key] = value
         
-        # check if any placeholders exist in this paragraph
         has_placeholder = any(f"{{{{{key}}}}}" in full_text for key in flat_replacements)
         if not has_placeholder:
             return
         
-        # process each placeholder
         for key, value in flat_replacements.items():
             placeholder = f"{{{{{key}}}}}"
             
             if placeholder in full_text:
-                if isinstance(value, list):
-                    # for lists, create bullet points
+                value_text = ""
+                # --- START OF NEW LOGIC ---
+                # Special handling for tech stack keys to ensure they are a single, comma-separated string.
+                if key in ['t.skills', 'a.skills']:
+                    if isinstance(value, list):
+                        value_text = ', '.join(value)
+                    else:
+                        value_text = str(value) # It's already a string, use as is.
+                # For all other lists (like 'expertise'), create bullet points.
+                elif isinstance(value, list):
                     value_text = '\n• '.join(value)
                     value_text = '• ' + value_text if value else ''
+                # Handle all other non-list values.
                 else:
-                    # Handle expertise as a list for better formatting
-                    if key == 'expertise' and isinstance(value, list):
-                        value_text = '\n'.join(value)
-                    else:
-                        # Ensure single line for bullet points to maintain formatting
-                        value_text = str(value).replace('\n', ' ').strip()
-                
-                # if it's a simple replacement (placeholder is complete in one run)
+                    value_text = str(value).replace('\n', ' ').strip()
+                # --- END OF NEW LOGIC ---
+
+                # If it's a simple replacement (placeholder is complete in one run)
                 for run in paragraph.runs:
                     if placeholder in run.text:
-                        # preserve formatting
                         run.text = run.text.replace(placeholder, value_text)
                         return
                 
-                # complex case: placeholder spans multiple runs
-                # rebuild the paragraph
+                # Complex case: placeholder spans multiple runs
                 self._complex_replace(paragraph, placeholder, value_text)
     
     def _complex_replace(self, paragraph, placeholder, replacement):
@@ -226,69 +226,66 @@ class CVCustomizer:
         
         return docx_output, pdf_output, execution_folder
     
+# In cv_customizer.py
+
     def estimate_page_usage(self, job_data: Dict) -> float:
-        """Estimate how much of the page the CV will use (0.0 to 1.0)"""
-        
-        # Character count weights based on CV template analysis (recalibrated)
+        """Estimate how much of the page the CV will use (0.0 to 1.0) - FINAL CALIBRATION"""
+
+        # Recalibrated weights for more accurate estimation
         char_weights = {
-            'bio': 2.5,  # Bio takes vertical space due to paragraph formatting
-            'expertise_skill': 12,  # Each skill in expertise list (includes bullet formatting)
-            'tech_stack': 1.8,  # Tech stacks with formatting
-            'bullet_point': 3.5,  # Bullet points have more spacing than expected
-            'section_headers': 50  # Account for section headers and spacing
+            'bio': 1.8,
+            'expertise_skill': 10,
+            'tech_stack': 1.5,
+            'bullet_point': 2.2,
+            'section_headers': 40
         }
-        
-        total_chars = 0
-        
+
+        total_weighted_chars = 0
+
         # Count bio characters
         bio = job_data.get('bio', '')
-        total_chars += len(bio) * char_weights['bio']
-        
-        # Count expertise characters (more accurate)
+        total_weighted_chars += len(bio) * char_weights['bio']
+
+        # Count expertise skills
         expertise = job_data.get('expertise', [])
-        if isinstance(expertise, list):
-            expertise_count = len(expertise)
-            total_chars += expertise_count * char_weights['expertise_skill']
-        else:
-            expertise_text = str(expertise)
-            total_chars += len(expertise_text) * 1.5
-        
-        # Add section headers and formatting overhead
-        total_chars += char_weights['section_headers']
-        
-        # Count bullet points and tech stacks with more accurate weighting
-        for section in ['t', 'a']:
-            if section in job_data and isinstance(job_data[section], dict):
-                section_data = job_data[section]
-                
-                # Tech stack (with formatting)
+        expertise_count = len(expertise) if isinstance(expertise, list) else 0
+        total_weighted_chars += expertise_count * char_weights['expertise_skill']
+
+        # Add section headers and other fixed spacing
+        total_weighted_chars += char_weights['section_headers'] * 3
+
+        # Count bullet points and tech stacks
+        for section_key in ['t', 'a']:
+            if section_key in job_data and isinstance(job_data[section_key], dict):
+                section_data = job_data[section_key]
+
+                # Tech stack
                 skills = section_data.get('skills', '')
-                total_chars += len(skills) * char_weights['tech_stack']
-                
-                # Bullet points (with better weighting)
+                total_weighted_chars += len(skills) * char_weights['tech_stack']
+
+                # Bullet points
                 bullet_count = 0
-                for i in range(1, 5):  # bp1-bp4 for t, bp1-bp3 for a
+                for i in range(1, 5):
                     bp_key = f'bp{i}'
                     if bp_key in section_data:
-                        bp_text = section_data[bp_key]
-                        total_chars += len(bp_text) * char_weights['bullet_point']
+                        bp_text = section_data.get(bp_key, '')
+                        total_weighted_chars += len(bp_text) * char_weights['bullet_point']
                         bullet_count += 1
                 
-                # Add spacing between bullet points
-                total_chars += bullet_count * 15
-        
-        # Estimate page usage (recalibrated based on your actual template)
-        # Your template can handle roughly 3500 weighted characters for a full page (increased from 2400)
-        page_usage = total_chars / 7000.0
-        
-        print(f"📊 Detailed page estimation:")
-        print(f"   Bio chars: {len(bio)} (weighted: {len(bio) * char_weights['bio']:.0f})")
-        print(f"   Expertise skills: {len(expertise) if isinstance(expertise, list) else 0} (weighted: {len(expertise) * char_weights['expertise_skill'] if isinstance(expertise, list) else 0:.0f})")
-        print(f"   Total weighted chars: {total_chars:.0f}")
-        print(f"   Page capacity: 3500 chars (recalibrated)")
-        print(f"   Usage: {page_usage:.1%}")
-        
-        return min(page_usage, 1.0)  # Cap at 100%
+                # Add overhead for each bullet
+                total_weighted_chars += bullet_count * 25
+
+        # A fully packed page on your template holds around 7500 weighted characters.
+        # This is the new "magic number" based on the recalibrated weights.
+        PAGE_CAPACITY = 7500.0  # <--- THIS IS THE CRITICAL CHANGE
+        page_usage = total_weighted_chars / PAGE_CAPACITY
+
+        print("📊 Final Page Estimation:")
+        print(f"   Total weighted chars: {total_weighted_chars:.0f}")
+        print(f"   Final Page Capacity: {PAGE_CAPACITY:.0f}")
+        print(f"   Estimated Page Usage: {page_usage:.1%}")
+
+        return min(page_usage, 1.5)
     
     def _validate_content_length(self, job_data: Dict):
         """Validate that content will fit on one page"""

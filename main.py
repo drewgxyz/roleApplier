@@ -116,90 +116,83 @@ class EnhancedCVCustomizer:
     
     def create_cv_from_input_file(self, input_file: str, output_name: Optional[str] = None):
         """Main method: provide input file with job description, get customized CV and cover letter"""
-        
+
         # Read original job text for logging
         with open(input_file, 'r', encoding='utf-8') as f:
             original_job_text = f.read().strip()
-        
+
         print("🤖 Parsing job description with AI...")
         job_info = self.job_parser.parse_from_file(input_file)
-        
         print(f"📋 Parsed job: {job_info.job_title} at {job_info.company_name}")
-        print(f"🎯 Required skills: {', '.join(job_info.required_skills[:5])}{'...' if len(job_info.required_skills) > 5 else ''}")
-        
-        print("🔧 Adapting your experience to match job requirements...")
-        adapted_experience = self.experience_adapter.adapt_experience_to_job(job_info)
-        
+
         # Generate output name if not provided
         if not output_name:
             company_safe = re.sub(r'[^\w\s-]', '', job_info.company_name or 'Company').replace(' ', '_')
             title_safe = re.sub(r'[^\w\s-]', '', job_info.job_title or 'Position').replace(' ', '_')
             output_name = f"CV_{company_safe}_{title_safe}"
-        
-        print("📝 Generating customized CV...")
+
+        # --- Adaptive Content Generation Loop ---
+        print("\n🚀 Starting adaptive content generation to guarantee a one-page fit...")
+        MAX_ATTEMPTS = 4
+        final_experience_data = None
+
+        # Start with the most detailed strategy
+        relevant_skills = self.experience_adapter._filter_job_skills_with_priority(job_info.required_skills + job_info.preferred_skills)
+        relevance_score = self.experience_adapter._assess_job_relevance(job_info, relevant_skills)
+        current_strategy = self.experience_adapter._get_enhanced_content_strategy(relevance_score)
+
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            print("\n" + "="*20 + f" Attempt {attempt}/{MAX_ATTEMPTS} " + "="*20)
+            
+            try:
+                # Generate CV content with the current strategy
+                print(f"🧬 Generating content with strategy: {current_strategy['name']} (Detail: {current_strategy['trp_detail']})")
+                current_cv_data = self.experience_adapter.regenerate_with_enhanced_detail(job_info, {}, current_strategy)
+
+                # Validate bullet lengths and enforce if necessary
+                validation = self.experience_adapter._validate_bullet_point_length(current_cv_data)
+                if validation['has_issues']:
+                    print("⚠️ Length requirements not met, enforcing...")
+                    current_cv_data = self.experience_adapter._regenerate_with_length_enforcement(job_info, current_cv_data)
+
+                # Estimate the page usage of the generated content
+                page_usage = self.cv_customizer.estimate_page_usage(current_cv_data)
+                
+                # Check if it fits (allowing a small margin)
+                if page_usage <= 1.05:
+                    print(f"✅ Success! CV fits on one page (Usage: {page_usage:.1%}). Finalizing...")
+                    final_experience_data = current_cv_data
+                    break
+                else:
+                    print(f"⚠️ CV is too long (Usage: {page_usage:.1%}). Reducing detail for next attempt.")
+                    final_experience_data = current_cv_data # Store the last good version
+                    current_strategy = self.experience_adapter._get_adaptive_content_strategy(current_strategy)
+
+            except Exception as e:
+                print(f"❌ Error during generation attempt {attempt}: {e}")
+                if final_experience_data:
+                    print("⚠️ Using data from the last successful attempt.")
+                    break
+                else:
+                    print("❌ Aborting due to critical error with no data generated.")
+                    return None, None, None # Exit if the first attempt fails catastrophically
+
+        # --- Generate Final Documents ---
+        print("\n📝 Generating FINAL documents...")
         docx_path, pdf_path, execution_folder = self.cv_customizer.customize_cv(
-            adapted_experience, output_name, job_info, original_job_text
+            final_experience_data, output_name, job_info, original_job_text
         )
-        
-        # Smart optimization: Check if we can enhance the CV with more detail
-        print("🔍 Analyzing page space usage...")
-        page_usage = self.cv_customizer.estimate_page_usage(adapted_experience)
-        
-        # Always enhance for maximum technical detail with length validation
-        print("🚀 Generating enhanced version with STRICT length requirements...")
-        try:
-            enhanced_experience = self.experience_adapter.regenerate_with_enhanced_detail(job_info, adapted_experience)
-            
-            # Validate bullet point lengths
-            print("🔍 Validating T. Rowe Price bullet point lengths...")
-            validation = self.experience_adapter._validate_bullet_point_length(enhanced_experience)
-            
-            if validation['has_issues']:
-                print(f"⚠️  Length requirements not met: {validation['total_issues']} issues")
-                for issue in validation['issues']:
-                    print(f"   - {issue}")
-                print("🔄 Enforcing strict length requirements...")
-                
-                # Use length enforcement method
-                enhanced_experience = self.experience_adapter._regenerate_with_length_enforcement(
-                    job_info, enhanced_experience
-                )
-            else:
-                print("✅ All bullet points meet length requirements")
-            
-            # Generate final CV
-            enhanced_docx_path, enhanced_pdf_path, _ = self.cv_customizer.customize_cv(
-                enhanced_experience, output_name, job_info, original_job_text
-            )
-            
-            # Check final page usage
-            enhanced_page_usage = self.cv_customizer.estimate_page_usage(enhanced_experience)
-            print(f"📈 Final page usage: {enhanced_page_usage:.1%}")
-            
-            # Use enhanced version unless it's way too long (allow overflow for quality)
-            if enhanced_page_usage <= 1.3:  # Allow significant overflow for maximum detail
-                print("✨ Enhanced CV with strict length requirements generated!")
-                docx_path, pdf_path = enhanced_docx_path, enhanced_pdf_path
-            else:
-                print("⚠️  Enhanced version exceeds reasonable page limits, using original")
-                
-        except Exception as e:
-            print(f"⚠️  Enhancement with length enforcement failed: {e}, using original version")
-        
-        # Generate cover letter
-        print("💌 Generating tailored cover letter...")
+
+        print("\n💌 Generating tailored cover letter...")
         try:
             cover_letter_filename = f"Drew_Gillies_Cover_Letter_{job_info.company_name.replace(' ', '_')}.pdf"
-            cover_letter_path = f"{execution_folder}/{cover_letter_filename}"
-            
-            cover_letter_text = self.cover_letter_generator.generate_cover_letter(job_info, cover_letter_path)
+            cover_letter_path = os.path.join(execution_folder, cover_letter_filename)
+            self.cover_letter_generator.generate_cover_letter(job_info, cover_letter_path)
             print(f"✓ Cover letter generated: {cover_letter_path}")
-            
         except Exception as e:
             print(f"⚠️  Cover letter generation failed: {e}")
-            print("   CV files are still available")
             cover_letter_path = None
-        
+
         return docx_path, pdf_path, cover_letter_path
     
     def create_cv_from_job_description(self, job_description: str, output_name: Optional[str] = None):
