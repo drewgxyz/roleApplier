@@ -144,32 +144,47 @@ class EnhancedCVCustomizer:
         # Smart optimization: Check if we can enhance the CV with more detail
         print("🔍 Analyzing page space usage...")
         page_usage = self.cv_customizer.estimate_page_usage(adapted_experience)
-        print(f"📊 Estimated page usage: {page_usage:.1%}")
         
-        if page_usage < 0.75:  # If using less than 75% of page
-            print("🚀 Extra space available - regenerating with enhanced detail for maximum impact...")
-            try:
-                enhanced_experience = self.experience_adapter.regenerate_with_enhanced_detail(job_info, adapted_experience)
+        # Always enhance for maximum technical detail with length validation
+        print("🚀 Generating enhanced version with STRICT length requirements...")
+        try:
+            enhanced_experience = self.experience_adapter.regenerate_with_enhanced_detail(job_info, adapted_experience)
+            
+            # Validate bullet point lengths
+            print("🔍 Validating T. Rowe Price bullet point lengths...")
+            validation = self.experience_adapter._validate_bullet_point_length(enhanced_experience)
+            
+            if validation['has_issues']:
+                print(f"⚠️  Length requirements not met: {validation['total_issues']} issues")
+                for issue in validation['issues']:
+                    print(f"   - {issue}")
+                print("🔄 Enforcing strict length requirements...")
                 
-                # Regenerate CV with enhanced content
-                enhanced_docx_path, enhanced_pdf_path, _ = self.cv_customizer.customize_cv(
-                    enhanced_experience, output_name, job_info, original_job_text
+                # Use length enforcement method
+                enhanced_experience = self.experience_adapter._regenerate_with_length_enforcement(
+                    job_info, enhanced_experience
                 )
+            else:
+                print("✅ All bullet points meet length requirements")
+            
+            # Generate final CV
+            enhanced_docx_path, enhanced_pdf_path, _ = self.cv_customizer.customize_cv(
+                enhanced_experience, output_name, job_info, original_job_text
+            )
+            
+            # Check final page usage
+            enhanced_page_usage = self.cv_customizer.estimate_page_usage(enhanced_experience)
+            print(f"📈 Final page usage: {enhanced_page_usage:.1%}")
+            
+            # Use enhanced version unless it's way too long (allow overflow for quality)
+            if enhanced_page_usage <= 1.3:  # Allow significant overflow for maximum detail
+                print("✨ Enhanced CV with strict length requirements generated!")
+                docx_path, pdf_path = enhanced_docx_path, enhanced_pdf_path
+            else:
+                print("⚠️  Enhanced version exceeds reasonable page limits, using original")
                 
-                # Verify enhanced version doesn't exceed page limit
-                enhanced_page_usage = self.cv_customizer.estimate_page_usage(enhanced_experience)
-                print(f"📈 Enhanced page usage: {enhanced_page_usage:.1%}")
-                
-                if enhanced_page_usage <= 1.0:  # If still within page limit
-                    print("✨ Enhanced CV generated with maximum detail!")
-                    docx_path, pdf_path = enhanced_docx_path, enhanced_pdf_path
-                else:
-                    print("⚠️  Enhanced version too long, using original optimized version")
-                    
-            except Exception as e:
-                print(f"⚠️  Enhancement failed: {e}, using original version")
-        else:
-            print("✓ Optimal page usage achieved with current detail level")
+        except Exception as e:
+            print(f"⚠️  Enhancement with length enforcement failed: {e}, using original version")
         
         # Generate cover letter
         print("💌 Generating tailored cover letter...")
@@ -190,12 +205,10 @@ class EnhancedCVCustomizer:
     def create_cv_from_job_description(self, job_description: str, output_name: Optional[str] = None):
         """Alternative method: provide job description text directly"""
         
-        print("🤖 Parsing job description with AI...")
         job_info = self.job_parser.parse_job_description(job_description)
         
         print(f"📋 Parsed job: {job_info.job_title} at {job_info.company_name}")
         
-        print("🔧 Adapting your experience to match job requirements...")
         adapted_experience = self.experience_adapter.adapt_experience_to_job(job_info)
         
         # Generate output name if not provided

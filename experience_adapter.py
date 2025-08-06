@@ -315,21 +315,38 @@ class ExperienceAdapter:
         - NEVER call me "Senior" anything in the bio
         - Acceptable titles ONLY: "Software Engineer", "Software Developer", "Mid-level Software Engineer", "Mid-level Software Developer"
 
-        ENHANCED DETAIL LEVEL DEFINITIONS:
-        - MAXIMUM: 40-55 words, multiple technologies, extensive metrics, technical depth, team context
-        - HIGH: 30-40 words, include specific technologies, metrics, and technical details
-        - MEDIUM: 20-30 words, include key technologies and quantified outcomes
-        - LOW: 15-25 words, focus on impact and relevant technologies
-        - MINIMAL: 10-15 words, essential impact only
+        ENHANCED DETAIL LEVEL DEFINITIONS (STRICT REQUIREMENTS):
+        - MAXIMUM: 70-90 words, 4-5 specific technologies from tech stack, extensive metrics, technical depth, team context
+        - HIGH: 55-70 words, include 3-4 technologies from tech stack, metrics, and technical details
+        - MEDIUM: 40-55 words, include 2-3 technologies from tech stack and quantified outcomes
+        - LOW: 30-45 words, focus on impact and 2 relevant technologies from tech stack
+        - MINIMAL: 25-35 words, essential impact with 1-2 tech stack technologies
 
-        BULLET POINT REQUIREMENTS (ENHANCED):
-        - Include 2-4 specific technologies per bullet point when space allows
-        - Add quantified business impact and detailed technical metrics
-        - Use technical terminology that matches the job requirements
+        T. ROWE PRICE BULLET POINTS - CRITICAL LENGTH REQUIREMENTS:
+        - Each T. Rowe Price bullet point MUST be 70-90 words minimum
+        - MANDATORY: Include 4-5 technologies from tech stack in each bullet
+        - Include extensive technical context from project_context.json
+        - Add specific metrics, timelines, team collaboration details
+        - Explain the technical architecture and implementation approach
+        - Mention business impact with quantified results
+        - This is NON-NEGOTIABLE - do not write shorter bullet points
+
+        BULLET POINT REQUIREMENTS (ENHANCED - CRITICAL):
+        - MANDATORY: Include 3-5 specific technologies from the tech stack in EVERY bullet point
+        - Add quantified business impact and detailed technical metrics from project context
+        - Use technical terminology that matches the job requirements exactly
         - Include team collaboration, scale, and architectural decisions
         - Mention compliance, performance improvements, and technical challenges solved
         - Draw extensively from additional context for rich technical detail
-        - Each bullet should tell a complete story of technical achievement
+        - Each bullet should tell a complete story of technical achievement with specific tech stack
+        - NEVER write a bullet point without mentioning tech stack technologies
+        - Example: "Architected production-grade Python data migration tool using SQLAlchemy ORM, PostgreSQL, and Docker containerization, implementing comprehensive rollback safety with Redis caching and FastAPI endpoints..."
+
+        TECH STACK INTEGRATION (MANDATORY):
+        - Every bullet point MUST mention at least 2-3 technologies from its section's tech stack
+        - If tech stack lists "Python, FastAPI, PostgreSQL, Redis, Docker, AWS", then EVERY bullet point must use these
+        - Weave technologies naturally into the technical narrative
+        - Don't just list technologies - explain HOW they were used technically
 
         Return ONLY a JSON object with these exact fields:
         {{
@@ -337,16 +354,16 @@ class ExperienceAdapter:
             "expertise": ["Prioritized list: programming languages first, then job-relevant skills in order of importance - exactly {enhanced_strategy['expertise_count']} skills total"],
             "t": {{
                 "skills": "Enhanced tech stack list (10-12 technologies from MY ACTUAL SKILLS)",
-                "bp1": "{enhanced_strategy['trp_detail']} detail bullet point with multiple technologies and metrics",
-                "bp2": "{enhanced_strategy['trp_detail']} detail bullet point with technical depth and business impact", 
-                "bp3": "{enhanced_strategy['trp_detail']} detail bullet point with specific achievements and technologies",
-                "bp4": "{enhanced_strategy['trp_detail']} detail bullet point with quantified results and technical detail"
+                "bp1": "MANDATORY 70-90 words: {enhanced_strategy['trp_detail']} detail bullet point - MUST mention 4-5 technologies from tech stack with extensive technical context, metrics, and implementation details from project context",
+                "bp2": "MANDATORY 70-90 words: {enhanced_strategy['trp_detail']} detail bullet point - MUST mention 4-5 technologies from tech stack with comprehensive technical depth, business impact, and architectural decisions", 
+                "bp3": "MANDATORY 70-90 words: {enhanced_strategy['trp_detail']} detail bullet point - MUST mention 4-5 technologies from tech stack with specific achievements, technical challenges solved, and quantified outcomes",
+                "bp4": "MANDATORY 70-90 words: {enhanced_strategy['trp_detail']} detail bullet point - MUST mention 4-5 technologies from tech stack with detailed technical implementation, team collaboration, and measurable business results"
             }},
             "a": {{
                 "skills": "Enhanced tech stack list (8-10 technologies from MY ACTUAL SKILLS)",
-                "bp1": "{enhanced_strategy['aws_detail']} detail bullet point with scale metrics and technologies",
-                "bp2": "{enhanced_strategy['aws_detail']} detail bullet point with scope, impact and technical detail",
-                "bp3": "{enhanced_strategy['aws_detail']} detail bullet point with compliance, security and technical achievements"
+                "bp1": "{enhanced_strategy['aws_detail']} detail bullet point - MUST mention 2-3 technologies from tech stack with scale metrics",
+                "bp2": "{enhanced_strategy['aws_detail']} detail bullet point - MUST mention 2-3 technologies from tech stack with scope and impact",
+                "bp3": "{enhanced_strategy['aws_detail']} detail bullet point - MUST mention 2-3 technologies from tech stack with technical achievements"
             }}
         }}
 
@@ -383,6 +400,122 @@ class ExperienceAdapter:
             print(f"Error in enhanced regeneration: {e}")
             # Return original data as fallback
             return current_data
+    
+    def _validate_bullet_point_length(self, cv_data: Dict) -> Dict:
+        """Validate T. Rowe Price bullet points meet minimum length requirements"""
+        issues = []
+        
+        if 't' in cv_data and isinstance(cv_data['t'], dict):
+            for bp_key in ['bp1', 'bp2', 'bp3', 'bp4']:
+                if bp_key in cv_data['t']:
+                    bp_text = cv_data['t'][bp_key]
+                    word_count = len(bp_text.split())
+                    
+                    if word_count < 70:
+                        issues.append(f"T. Rowe Price {bp_key}: {word_count} words (minimum 70 required)")
+        
+        return {
+            'has_issues': len(issues) > 0,
+            'issues': issues,
+            'total_issues': len(issues)
+        }
+    
+    def _regenerate_with_length_enforcement(self, job_info: JobInfo, current_data: Dict, retry_count: int = 0) -> Dict:
+        """Regenerate with strict length enforcement for T. Rowe Price bullet points"""
+        
+        if retry_count >= 2:  # Max 2 retries
+            print("⚠️  Maximum retries reached, using current version")
+            return current_data
+        
+        print(f"🔄 Retry {retry_count + 1}: Regenerating with STRICT length requirements...")
+        
+        # Get enhanced strategy
+        relevant_skills = self._filter_job_skills_with_priority(job_info.required_skills + job_info.preferred_skills)
+        relevance_score = self._assess_job_relevance(job_info, relevant_skills)
+        enhanced_strategy = self._get_enhanced_content_strategy(relevance_score)
+        
+        # Ultra-strict prompt for length enforcement
+        strict_prompt = f"""
+        CRITICAL LENGTH ENFORCEMENT - T. ROWE PRICE BULLET POINTS
+
+        Previous attempt failed length requirements. This is attempt #{retry_count + 1}.
+
+        TARGET JOB:
+        - Position: {job_info.job_title} at {job_info.company_name}
+        - Required Skills: {', '.join(job_info.required_skills)}
+        - Key Responsibilities: {', '.join(job_info.key_responsibilities)}
+
+        MY EXPERIENCE AND CONTEXT:
+        {json.dumps(self.original_cv_data, indent=2)}
+        {json.dumps(self.additional_context, indent=2) if self.additional_context else ""}
+
+        ULTRA-STRICT REQUIREMENTS FOR T. ROWE PRICE BULLET POINTS:
+        1. Each T. Rowe Price bullet point MUST be EXACTLY 70-90 words
+        2. Count every word - do not submit anything under 70 words
+        3. Include 4-5 specific technologies from the tech stack in EVERY bullet point
+        4. Use extensive technical details from the project context
+        5. Include specific metrics, timelines, team sizes, technical challenges
+        6. Mention architectural decisions and implementation approaches
+        7. Add business impact with quantified results
+
+        MANDATORY WORD COUNT: 70-90 words per T. Rowe Price bullet point
+        DO NOT SUBMIT ANYTHING SHORTER THAN 70 WORDS
+
+        Return ONLY a JSON object:
+        {{
+            "bio": "Enhanced bio with exactly {enhanced_strategy['bio_sentences']} sentences",
+            "expertise": ["Exactly {enhanced_strategy['expertise_count']} skills"],
+            "t": {{
+                "skills": "Tech stack list with 10-12 technologies",
+                "bp1": "EXACTLY 70-90 words with 4-5 tech stack technologies and extensive context",
+                "bp2": "EXACTLY 70-90 words with 4-5 tech stack technologies and comprehensive details",
+                "bp3": "EXACTLY 70-90 words with 4-5 tech stack technologies and specific achievements",
+                "bp4": "EXACTLY 70-90 words with 4-5 tech stack technologies and measurable results"
+            }},
+            "a": {{
+                "skills": "Tech stack list with 8-10 technologies",
+                "bp1": "40-55 words with 2-3 tech stack technologies",
+                "bp2": "40-55 words with 2-3 tech stack technologies", 
+                "bp3": "40-55 words with 2-3 tech stack technologies"
+            }}
+        }}
+
+        CRITICAL: T. Rowe Price bullet points must be 70-90 words each. This is non-negotiable.
+        """
+
+        try:
+            response = self.client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=3000,  # Increased for longer content
+                messages=[{"role": "user", "content": strict_prompt}]
+            )
+            
+            response_text = response.content[0].text
+            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            
+            if json_match:
+                new_data = json.loads(json_match.group())
+                
+                # Validate the new data
+                validation = self._validate_bullet_point_length(new_data)
+                
+                if validation['has_issues']:
+                    print(f"❌ Length validation failed: {validation['total_issues']} issues")
+                    for issue in validation['issues']:
+                        print(f"   - {issue}")
+                    
+                    # Retry with stricter requirements
+                    return self._regenerate_with_length_enforcement(job_info, current_data, retry_count + 1)
+                else:
+                    print("✅ All T. Rowe Price bullet points meet 70+ word requirement")
+                    return new_data
+            else:
+                print("❌ Could not extract JSON from response")
+                return self._regenerate_with_length_enforcement(job_info, current_data, retry_count + 1)
+                
+        except Exception as e:
+            print(f"❌ Error in length enforcement: {e}")
+            return self._regenerate_with_length_enforcement(job_info, current_data, retry_count + 1)
     
     def _filter_job_skills(self, job_skills: list[str]) -> list[str]:
         """Filter job skills to only include ones I actually have"""
