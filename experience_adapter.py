@@ -176,8 +176,8 @@ class ExperienceAdapter:
 
         Return ONLY a JSON object with these exact fields:
         {{
-            "bio": "Bio paragraph with exactly {content_strategy['bio_sentences']} sentences - NEVER use 'Senior' or inflated job titles",
-            "expertise": ["Exactly {content_strategy['expertise_count']} most relevant skills from MY ACTUAL SKILLS"],
+            "bio": "Updated bio paragraph with exactly {content_strategy['bio_sentences']} sentences - NEVER use 'Senior' or inflated job titles",
+            "expertise": ["Prioritized list: programming languages first, then job-relevant skills in order of importance - exactly {content_strategy['expertise_count']} skills total"],
             "t": {{
                 "skills": "Concise tech stack list (only from MY ACTUAL SKILLS)",
                 "bp1": "{content_strategy['trp_detail']} detail bullet point mentioning specific technologies and business impact",
@@ -192,6 +192,19 @@ class ExperienceAdapter:
                 "bp3": "{content_strategy['aws_detail']} detail bullet point with compliance/security impact"
             }}
         }}
+
+        EXPERTISE SECTION PRIORITIZATION (CRITICAL):
+        1. ALWAYS start with programming languages: Python, Java, JavaScript (in that order if relevant to job)
+        2. Then add job-relevant frameworks/technologies in order of importance to this specific role
+        3. Then add cloud platforms (AWS, etc.) if mentioned in job requirements
+        4. Then add databases and tools in order of job relevance
+        5. Fill remaining slots with most relevant skills from lower tiers
+        
+        Examples:
+        - Python/Flask job: ["Python", "Java", "Flask", "FastAPI", "AWS", "PostgreSQL", "Docker", "Redis", ...]
+        - Java/Spring job: ["Java", "Python", "Spring Boot", "AWS", "PostgreSQL", "Docker", ...]
+        - Data Engineering job: ["Python", "SQL", "AWS", "PostgreSQL", "Docker", "ETL", "Apache Airflow", ...]
+        - DevOps job: ["Python", "AWS", "Docker", "Terraform", "Jenkins", "Linux", ...]
 
         CRITICAL: Follow the exact content strategy provided. Technologies in tech stacks MUST appear in bullet points.
         NEVER inflate job titles - use only "Software Engineer", "Software Developer", or "Mid-level" versions.
@@ -321,7 +334,7 @@ class ExperienceAdapter:
         Return ONLY a JSON object with these exact fields:
         {{
             "bio": "Enhanced bio with exactly {enhanced_strategy['bio_sentences']} sentences - rich technical detail but NEVER 'Senior' titles",
-            "expertise": ["Exactly {enhanced_strategy['expertise_count']} most relevant skills from MY ACTUAL SKILLS"],
+            "expertise": ["Prioritized list: programming languages first, then job-relevant skills in order of importance - exactly {enhanced_strategy['expertise_count']} skills total"],
             "t": {{
                 "skills": "Enhanced tech stack list (10-12 technologies from MY ACTUAL SKILLS)",
                 "bp1": "{enhanced_strategy['trp_detail']} detail bullet point with multiple technologies and metrics",
@@ -336,6 +349,16 @@ class ExperienceAdapter:
                 "bp3": "{enhanced_strategy['aws_detail']} detail bullet point with compliance, security and technical achievements"
             }}
         }}
+
+        EXPERTISE SECTION PRIORITIZATION (CRITICAL):
+        1. ALWAYS start with programming languages: Python, Java, JavaScript (in that order if relevant)
+        2. Then add job-relevant frameworks/technologies in order of importance to this role
+        3. Then add cloud platforms (AWS, etc.) if relevant
+        4. Then add databases and tools in order of job relevance
+        5. Fill remaining slots with most relevant skills from lower tiers
+        
+        Example for a Python/Flask role: ["Python", "Java", "Flask", "FastAPI", "AWS", "PostgreSQL", "Docker", "Redis", ...]
+        Example for a Java/Spring role: ["Java", "Python", "Spring Boot", "AWS", "PostgreSQL", "Docker", ...]
 
         CRITICAL: Create the STRONGEST possible CV for this role. Use available space for maximum technical impact.
         Technologies in tech stacks MUST appear in bullet points. Include extensive technical detail and metrics.
@@ -471,7 +494,7 @@ class ExperienceAdapter:
                 'bio_sentences': 3,  # Shorter bio for more bullet space
                 'trp_detail': 'HIGH',
                 'aws_detail': 'MEDIUM',
-                'expertise_count': 12
+                'expertise_count': 14  # Increased from 12
             }
         elif relevance_score >= 6:
             # Medium-high relevance - balanced approach
@@ -480,7 +503,7 @@ class ExperienceAdapter:
                 'bio_sentences': 3,
                 'trp_detail': 'MEDIUM',
                 'aws_detail': 'MEDIUM',
-                'expertise_count': 10
+                'expertise_count': 12  # Increased from 10
             }
         elif relevance_score >= 4:
             # Medium relevance - conservative approach
@@ -489,7 +512,7 @@ class ExperienceAdapter:
                 'bio_sentences': 4,
                 'trp_detail': 'MEDIUM',
                 'aws_detail': 'LOW',
-                'expertise_count': 10
+                'expertise_count': 10  # Same as before
             }
         else:
             # Low relevance - minimal approach
@@ -498,7 +521,7 @@ class ExperienceAdapter:
                 'bio_sentences': 4,
                 'trp_detail': 'LOW',
                 'aws_detail': 'MINIMAL',
-                'expertise_count': 8
+                'expertise_count': 8   # Same as before
             }
     
     def _get_enhanced_content_strategy(self, relevance_score: int) -> dict:
@@ -511,7 +534,7 @@ class ExperienceAdapter:
                 'bio_sentences': 3,  # Shorter bio for more bullet space
                 'trp_detail': 'MAXIMUM',
                 'aws_detail': 'HIGH',
-                'expertise_count': 14
+                'expertise_count': 16  # Increased from 14
             }
         elif relevance_score >= 6:
             # Medium-high relevance - enhanced balanced approach
@@ -520,7 +543,7 @@ class ExperienceAdapter:
                 'bio_sentences': 3,
                 'trp_detail': 'HIGH',
                 'aws_detail': 'HIGH',
-                'expertise_count': 12
+                'expertise_count': 14  # Increased from 12
             }
         elif relevance_score >= 4:
             # Medium relevance - enhanced conservative approach
@@ -529,7 +552,7 @@ class ExperienceAdapter:
                 'bio_sentences': 4,
                 'trp_detail': 'HIGH',
                 'aws_detail': 'MEDIUM',
-                'expertise_count': 11
+                'expertise_count': 12  # Increased from 11
             }
         else:
             # Low relevance - still enhanced from original
@@ -538,5 +561,5 @@ class ExperienceAdapter:
                 'bio_sentences': 4,
                 'trp_detail': 'MEDIUM',
                 'aws_detail': 'LOW',
-                'expertise_count': 9
+                'expertise_count': 10  # Increased from 9
             }

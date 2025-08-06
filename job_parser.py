@@ -61,7 +61,43 @@ class AIJobParser:
             
             if json_match:
                 job_data = json.loads(json_match.group())
-                return JobInfo(**job_data)
+                
+                # Filter to only expected fields to avoid unexpected keyword arguments
+                expected_fields = {
+                    'job_title', 'company_name', 'location', 'required_skills', 
+                    'preferred_skills', 'years_experience', 'key_responsibilities', 
+                    'industry', 'remote_policy'
+                }
+                
+                # Create filtered dict with only expected fields
+                filtered_data = {}
+                for field in expected_fields:
+                    if field in job_data:
+                        filtered_data[field] = job_data[field]
+                    else:
+                        # Provide defaults for missing fields
+                        if field == 'required_skills':
+                            filtered_data[field] = []
+                        elif field == 'preferred_skills':
+                            filtered_data[field] = []
+                        elif field == 'key_responsibilities':
+                            filtered_data[field] = []
+                        elif field == 'company_name':
+                            filtered_data[field] = "Unknown Company"
+                        elif field == 'location':
+                            filtered_data[field] = "Not specified"
+                        elif field == 'years_experience':
+                            filtered_data[field] = "Not specified"
+                        elif field == 'industry':
+                            filtered_data[field] = "Technology"
+                        elif field == 'remote_policy':
+                            filtered_data[field] = "Not specified"
+                        elif field == 'job_title':
+                            filtered_data[field] = "Software Role"
+                        else:
+                            filtered_data[field] = ""
+                
+                return JobInfo(**filtered_data)
             else:
                 raise ValueError("Could not extract JSON from AI response")
                 

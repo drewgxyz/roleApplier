@@ -20,7 +20,7 @@ def load_config():
     
     # Check if config file exists
     if not config_file.exists():
-        # Create sample config file
+        # Update config with enhanced skills structure
         sample_config = {
             "api_key": "your_claude_api_key_here",
             "template_path": "templates/template.docx",
@@ -52,6 +52,9 @@ def load_config():
                         "Monitoring", "Security", "Apache Airflow", "OpenSearch"
                     ]
                 },
+                "programming_languages": [
+                    "Python", "Java", "JavaScript", "SQL"
+                ],
                 "blacklisted_skills": [
                     "TypeScript", "Go", "Rust", "C++", "C#", "C", "PHP", "Ruby",
                     "Scala", "Kotlin", "Swift", "R", "MATLAB", "Express.js", "React",

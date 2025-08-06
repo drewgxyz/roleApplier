@@ -2,3 +2,4 @@ python-docx
 docx2pdf
 pyyaml
 docx
+reportlab
