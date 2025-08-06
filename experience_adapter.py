@@ -154,7 +154,7 @@ class ExperienceAdapter:
         I need to customize my CV for this specific job opportunity. I want to keep the exact same structure but adapt the content to highlight relevant skills and experiences.
 
         TARGET JOB:
-        - Position: {job_info.job_title} at {job_info.company_name}
+        - Position: {job_info.job_title} at {job_info.company_name} (IF Senior is in the name, do not include this - I can only ever be mid level or non-senior)
         - Required Skills: {', '.join(job_info.required_skills)}
         - Preferred Skills: {', '.join(job_info.preferred_skills)}
         - Key Responsibilities: {', '.join(job_info.key_responsibilities)}
@@ -169,7 +169,7 @@ class ExperienceAdapter:
 
         CRITICAL INSTRUCTIONS - ADAPTIVE LENGTH MANAGEMENT:
         1. MUST fit on exactly 1 page - use the content strategy provided
-        2. Bio: Use exactly {content_strategy['bio_sentences']} sentences
+        2. Bio: Use exactly {content_strategy['bio_sentences']} sentences. NEVER CALL MY OWN ROLE IN THE BIO SOMETHING I AM NOT, i.e Senior Software Developer. I can be: Software Engineer, Software Developer, Backend Engineer
         3. T. Rowe Price bullets: {content_strategy['trp_detail']} detail level
         4. AWS bullets: {content_strategy['aws_detail']} detail level  
         5. Expertise: Include exactly {content_strategy['expertise_count']} skills
@@ -325,7 +325,7 @@ class ExperienceAdapter:
         {context_section}
 
         CRITICAL INSTRUCTIONS - ADAPT TO THE PROVIDED STRATEGY:
-        1. Bio: Use exactly {enhanced_strategy['bio_sentences']} sentences.
+        1. Bio: Use exactly {enhanced_strategy['bio_sentences']} sentences. NEVER CALL MY OWN ROLE IN THE BIO SOMETHING I AM NOT, i.e Senior Software Developer. I can be: Software Engineer, Software Developer, Backend Engineer
         2. T. Rowe Price bullets: Use '{enhanced_strategy['trp_detail']}' detail level.
         3. AWS bullets: Use '{enhanced_strategy['aws_detail']}' detail level.
         4. Expertise: Include exactly {enhanced_strategy['expertise_count']} skills.
@@ -377,7 +377,7 @@ class ExperienceAdapter:
     def _validate_bullet_point_length(self, cv_data: Dict) -> Dict:
         """Validate T. Rowe Price bullet points meet minimum length requirements"""
         issues = []
-        MIN_WORD_COUNT = 60  # <--- CHANGED FROM 70 to 60
+        MIN_WORD_COUNT = 50
 
         if 't' in cv_data and isinstance(cv_data['t'], dict):
             for bp_key in ['bp1', 'bp2', 'bp3', 'bp4']:
@@ -410,7 +410,7 @@ class ExperienceAdapter:
         
         # Ultra-strict prompt for length enforcement
         strict_prompt = f"""
-        CRITICAL FAILURE ANALYSIS: The previous attempt failed because the bullet points for T. Rowe Price were too short. Your task is to fix this. This is a non-negotiable instruction.
+        CRITICAL FAILURE ANALYSIS: The previous attempt failed because the bullet points for T. Rowe Price were too short. Your task is to fix this. This is a non-negotiable instruction. 
 
         TARGET JOB:
         - Position: {job_info.job_title}
@@ -420,17 +420,17 @@ class ExperienceAdapter:
         {json.dumps(self.additional_context, indent=2) if self.additional_context else ""}
 
         MANDATORY INSTRUCTIONS FOR T. ROWE PRICE BULLET POINTS:
-        1.  **WORD COUNT: 70-90 words. EACH. This is an absolute, non-negotiable requirement.** Do not generate anything shorter.
+        1.  **WORD COUNT: 65-75 words. EACH. This is an absolute, non-negotiable requirement.** Do not generate anything shorter.
         2.  **TECHNICAL SYNTHESIS:** To achieve this length, you MUST synthesize information. For each bullet point, combine details from the 'detailed_description', 'technical_stack', 'challenges_solved', and 'business_impact' sections of the provided context.
         3.  **TECHNOLOGY INTEGRATION:** You MUST mention 4-5 specific technologies from the tech stack in each bullet point. Weave them into the narrative naturally.
         4.  **EXAMPLE OF SYNTHESIS:** For 'bp1', you could start with the description, then mention the 'SQLAlchemy ORM', 'PostgreSQL', and 'Docker' from the stack, explain how they solved the 'complex foreign key relationships' challenge, and quantify the '95% reduction in manual migration time' as the impact.
 
         ---
-        PERFECT EXAMPLE BULLET POINT (78 words):
+        PERFECT EXAMPLE BULLET POINT (75 words):
         "Architected and led the development of a production-grade Python data migration tool using the FastAPI framework, leveraging SQLAlchemy for complex relational data mapping in PostgreSQL and utilizing Redis for caching to ensure rollback safety. This tool, containerized with Docker and deployed on AWS, automated the synchronization of data across DEV/STAGE/PROD environments, reducing manual migration time by 95% and eliminating data integrity errors through comprehensive automated validation scripts, ensuring referential integrity for critical financial reporting systems."
         ---
 
-        Now, regenerate the ENTIRE JSON object. Adhere strictly to the 70-90 word count for every T. Rowe Price bullet point.
+        Now, regenerate the ENTIRE JSON object. Adhere strictly to the 65-75 word count for every T. Rowe Price bullet point.
 
         Return ONLY a JSON object with this exact nested structure. This is non-negotiable.
         {{
@@ -455,7 +455,7 @@ class ExperienceAdapter:
         try:
             response = self.client.messages.create(
                 model="claude-3-5-sonnet-20241022",
-                max_tokens=3000,
+                max_tokens=1500,
                 temperature=0.7,  # <--- ADD THIS LINE. Increases creativity and verbosity.
                 messages=[{"role": "user", "content": strict_prompt}]
             )
@@ -616,7 +616,7 @@ class ExperienceAdapter:
             # Medium relevance - conservative approach
             return {
                 'name': 'MEDIUM_RELEVANCE',
-                'bio_sentences': 4,
+                'bio_sentences': 3,
                 'trp_detail': 'MEDIUM',
                 'aws_detail': 'LOW',
                 'expertise_count': 10  # Same as before
@@ -625,7 +625,7 @@ class ExperienceAdapter:
             # Low relevance - minimal approach
             return {
                 'name': 'LOW_RELEVANCE',
-                'bio_sentences': 4,
+                'bio_sentences': 3,
                 'trp_detail': 'LOW',
                 'aws_detail': 'MINIMAL',
                 'expertise_count': 8   # Same as before
@@ -641,13 +641,13 @@ class ExperienceAdapter:
                 'bio_sentences': 3,  # Shorter bio for more bullet space
                 'trp_detail': 'MAXIMUM',
                 'aws_detail': 'HIGH',
-                'expertise_count': 16  # Increased from 14
+                'expertise_count': 14  # Increased from 14
             }
         elif relevance_score >= 6:
             # Medium-high relevance - enhanced balanced approach
             return {
                 'name': 'ENHANCED_MEDIUM_HIGH_RELEVANCE', 
-                'bio_sentences': 3,
+                'bio_sentences': 4,
                 'trp_detail': 'HIGH',
                 'aws_detail': 'HIGH',
                 'expertise_count': 14  # Increased from 12
@@ -659,7 +659,7 @@ class ExperienceAdapter:
                 'bio_sentences': 4,
                 'trp_detail': 'HIGH',
                 'aws_detail': 'MEDIUM',
-                'expertise_count': 12  # Increased from 11
+                'expertise_count': 13  # Increased from 11
             }
         else:
             # Low relevance - still enhanced from original
@@ -668,5 +668,5 @@ class ExperienceAdapter:
                 'bio_sentences': 4,
                 'trp_detail': 'MEDIUM',
                 'aws_detail': 'LOW',
-                'expertise_count': 10  # Increased from 9
+                'expertise_count': 12  # Increased from 9
             }

@@ -133,7 +133,7 @@ class EnhancedCVCustomizer:
 
         # --- Adaptive Content Generation Loop ---
         print("\n🚀 Starting adaptive content generation to guarantee a one-page fit...")
-        MAX_ATTEMPTS = 4
+        MAX_ATTEMPTS = 2
         final_experience_data = None
 
         # Start with the most detailed strategy

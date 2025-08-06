@@ -52,7 +52,7 @@ class CoverLetterGenerator:
         10. Do NOT include placeholder text like [Your name] - use Drew Gillies throughout
         11. Do NOT repeat closing phrases or signatures
 
-        Return ONLY the cover letter text without any placeholders, signatures, or repeated closings.
+        Return ONLY the cover letter text without any placeholders, signatures, or repeated closings. 
         """
 
         try:

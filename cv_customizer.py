@@ -277,7 +277,7 @@ class CVCustomizer:
 
         # A fully packed page on your template holds around 7500 weighted characters.
         # This is the new "magic number" based on the recalibrated weights.
-        PAGE_CAPACITY = 7500.0  # <--- THIS IS THE CRITICAL CHANGE
+        PAGE_CAPACITY = 7500.0 
         page_usage = total_weighted_chars / PAGE_CAPACITY
 
         print("📊 Final Page Estimation:")
@@ -297,7 +297,7 @@ class CVCustomizer:
             warnings.append(f"Bio is too long ({len(bio)} chars, recommend <600)")
         
         # Skip bullet point validation - now handled by length enforcement system
-        # The new system requires 70-90 word bullet points, so character limits are obsolete
+        # The new system requires 65-75 word bullet points, so character limits are obsolete
         
         if warnings:
             print("⚠️  Content length warnings:")
