@@ -181,9 +181,6 @@ class CoverLetterGenerator:
         
         # Professional closing
         closing_text = """
-        Sincerely,<br/>
-        <br/>
-        <b>Drew Gillies</b>
         """
         story.append(Spacer(1, 12))
         story.append(Paragraph(closing_text, normal_style))
