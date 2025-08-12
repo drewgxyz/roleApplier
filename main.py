@@ -124,13 +124,11 @@ class EnhancedCVCustomizer:
         job_info = self.job_parser.parse_from_file(input_file)
         print(f"📋 Parsed job: {job_info.job_title} at {job_info.company_name}")
 
-        # Generate output name if not provided
         if not output_name:
             company_safe = re.sub(r'[^\w\s-]', '', job_info.company_name or 'Company').replace(' ', '_')
             title_safe = re.sub(r'[^\w\s-]', '', job_info.job_title or 'Position').replace(' ', '_')
             output_name = f"CV_{company_safe}_{title_safe}"
 
-        # --- Adaptive Content Generation Loop ---
         print("\n🚀 Starting adaptive content generation to guarantee a one-page fit...")
         MAX_ATTEMPTS = 2
         final_experience_data = None
