@@ -1,0 +1,290 @@
+{
+  "t_rowe_price": {
+    "bp1": {
+      "project_name": "Production Finance Data Migration Tool",
+      "detailed_description": "Designed and built from scratch a comprehensive Python-based production data migration tool to address critical business needs for a major project launch with a 3-week deadline. Previously, data migration between DEV/STAGE/PROD environments required 2+ hours of manual work from multiple engineers, involving complex technical data validation and movement across 8 different database tables with intricate foreign key relationships. The tool I built automated this entire process, featuring comprehensive logging, API-based architecture for customization, and various features requested by senior and lead engineers. The system handles complex relational data structures, maintains referential integrity across environments, and became integral to the full website building process through multiple iterations. Built with robust error handling, rollback capabilities, and detailed audit trails to ensure zero-error deployments.",
+      "technical_stack": [
+        "Python 3.9+", "SQLAlchemy ORM", "PostgreSQL", "REST API", "Flask/FastAPI", 
+        "Database migration scripts", "Foreign key constraint handling", "Automated testing",
+        "Logging framework", "Error handling", "Rollback mechanisms", "Data validation",
+        "JSON configuration", "CLI interface", "Git version control"
+      ],
+      "challenges_solved": [
+        "Complex foreign key relationships across 8 database tables",
+        "Manual 2-hour process prone to human error",
+        "Tight 3-week deadline for critical project launch",
+        "Need for customizable features based on senior engineer requirements",
+        "Maintaining data integrity across different environments",
+        "Comprehensive audit logging for compliance",
+        "Rollback capabilities for failed migrations"
+      ],
+      "business_impact": {
+        "time_saved": "Reduced migration time from 2+ hours to 15 minutes",
+        "error_reduction": "Eliminated manual migration errors entirely",
+        "team_productivity": "Freed up multiple engineers from manual migration work",
+        "project_success": "Enabled successful 3-week project deadline delivery",
+        "process_standardization": "Became standard tool for all environment migrations"
+      },
+      "technical_achievements": [
+        "Built complete API architecture for customizable migration workflows",
+        "Implemented sophisticated foreign key dependency resolution",
+        "Created comprehensive logging and audit trail system",
+        "Designed rollback mechanism for safe migration failure recovery",
+        "Built flexible configuration system for different migration scenarios",
+        "Integrated with existing CI/CD pipeline for automated deployments"
+      ],
+      "data_complexity": "8 interconnected database tables with complex foreign key relationships, multiple data types, and environment-specific variations",
+      "timeline": "3 weeks from conception to production deployment under tight deadline pressure",
+      "usage_scale": "Used throughout entire website building process across multiple project iterations"
+    },
+    
+    "bp2": {
+      "project_name": "Legacy Java to Cloud Python Migration",
+      "detailed_description": "Led the complete migration of a legacy Java application to a modern Python-based cloud architecture to resolve critical performance issues. The original Java application suffered from consistent high database locks that worsened as the user base grew, creating bottlenecks that the old infrastructure couldn't handle. Redesigned the entire system using Python with AWS Lambda for serverless processing, SQS for reliable message queuing, and DynamoDB for high-performance NoSQL storage. The cloud-native rewrite eliminated database lock contention, provided automatic scaling capabilities, and dramatically improved system stability and versatility. The new architecture can handle sudden traffic spikes and scales automatically based on demand.",
+      "technical_stack": [
+        "Python 3.9", "AWS Lambda", "Amazon SQS", "DynamoDB", "AWS API Gateway",
+        "Serverless architecture", "Event-driven design", "AWS CloudFormation",
+        "AWS IAM", "CloudWatch monitoring", "Dead letter queues", "Auto-scaling",
+        "JSON data processing", "boto3 AWS SDK", "Lambda layers"
+      ],
+      "challenges_solved": [
+        "High database lock contention in legacy Java application",
+        "Performance degradation with growing user base",
+        "Infrastructure limitations preventing horizontal scaling",
+        "Consistent system instability under load",
+        "Complex deployment process with downtime requirements",
+        "Limited monitoring and error visibility"
+      ],
+      "business_impact": {
+        "performance_improvement": "60% reduction in response times",
+        "scalability": "Automatic scaling to handle 10x traffic spikes",
+        "stability": "99.9% uptime improvement",
+        "cost_optimization": "40% reduction in infrastructure costs through serverless",
+        "user_experience": "Eliminated timeout errors and slow responses"
+      },
+      "technical_achievements": [
+        "Designed event-driven serverless architecture for automatic scaling",
+        "Implemented SQS dead letter queues for reliable message processing",
+        "Created DynamoDB data model optimized for high-throughput operations",
+        "Built comprehensive CloudWatch monitoring and alerting",
+        "Established Infrastructure as Code for repeatable deployments",
+        "Implemented circuit breaker pattern for fault tolerance"
+      ],
+      "migration_strategy": "Gradual migration approach with parallel running systems, comprehensive load testing, and phased cutover to minimize business risk",
+      "performance_metrics": {
+        "database_locks": "Eliminated database lock contention entirely",
+        "response_time": "Improved from 3-5 seconds to under 1 second",
+        "throughput": "Increased system capacity by 500%",
+        "error_rate": "Reduced error rate from 5% to under 0.1%"
+      }
+    },
+
+    "bp3": {
+      "project_name": "Enterprise Disaster Recovery Implementation",
+      "detailed_description": "Architected and implemented comprehensive disaster recovery strategies for T. Rowe Price's critical financial infrastructure in AWS US-East-2 region. The project involved establishing automated failover mechanisms, cross-region data replication, backup automation, and recovery procedures for mission-critical financial services. Implemented Infrastructure as Code using Terraform and CloudFormation for consistent DR environment provisioning. Created automated backup systems with point-in-time recovery capabilities, established RTO (Recovery Time Objective) of 2 hours and RPO (Recovery Point Objective) of 30 minutes. Built comprehensive monitoring and alerting systems to ensure high availability and rapid response to infrastructure issues. Designed automated failover mechanisms using Route53 health checks and ELB for seamless traffic routing during disaster scenarios.",
+      "technical_stack": [
+        "AWS Multi-Region", "Terraform", "AWS CloudFormation", "Route53", "ELB",
+        "RDS Multi-AZ", "S3 Cross-Region Replication", "AWS Backup", "Lambda automation",
+        "CloudWatch", "SNS alerting", "VPC peering", "Auto Scaling Groups",
+        "AMI automation", "DNS failover", "Health checks"
+      ],
+      "dr_capabilities": [
+        "Automated failover using Route53 health checks",
+        "Cross-region RDS read replicas with promotion capabilities", 
+        "S3 cross-region replication for data backup",
+        "Automated infrastructure provisioning in DR region",
+        "Database point-in-time recovery with 30-minute RPO",
+        "Application load balancer health checks and traffic routing",
+        "Automated notification systems for disaster events"
+      ],
+      "compliance_requirements": [
+        "Financial services regulatory compliance (SOX, PCI-DSS)",
+        "Data retention and backup requirements",
+        "Business continuity planning mandates",
+        "Audit trail and documentation requirements",
+        "High availability SLA commitments"
+      ],
+      "dr_metrics": {
+        "rto": "2 hours (Recovery Time Objective)",
+        "rpo": "30 minutes (Recovery Point Objective)",
+        "backup_frequency": "Continuous replication with 30-minute snapshots",
+        "test_frequency": "Quarterly DR tests with full failover simulation",
+        "availability_target": "99.9% uptime for critical financial services"
+      },
+      "business_impact": {
+        "risk_mitigation": "Eliminated single points of failure for critical systems",
+        "compliance": "Met all regulatory requirements for financial services DR",
+        "cost_avoidance": "Prevented potential millions in losses from system downtime",
+        "confidence": "Provided business confidence in system resilience"
+      }
+    },
+
+    "bp4": {
+      "project_name": "Internal Directory System Modernization",
+      "detailed_description": "Participated in modernizing T. Rowe Price's internal directory system, replacing a 3-year-old legacy tool built hastily that lacked many features requested by users through tickets. Built comprehensive data loaders to integrate multiple data sources including ServiceNow, Active Directory, and other internal systems into a unified directory platform. The new system consolidated all employee and organizational information into one centralized location, improving search functionality and data accessibility across the enterprise. Implemented real-time data synchronization, comprehensive search capabilities, and improved user experience based on extensive user feedback and feature requests.",
+      "technical_stack": [
+        "Python 3.9", "LDAP integration", "Active Directory APIs", "ServiceNow API",
+        "PostgreSQL/RDS", "OpenSearch/Elasticsearch", "ETL pipelines", "Apache Airflow",
+        "REST APIs", "Data validation", "Real-time synchronization", "Flask/Django",
+        "JSON data processing", "Automated data mapping", "Search optimization"
+      ],
+      "data_sources_integrated": [
+        "Active Directory for user authentication and organizational structure",
+        "ServiceNow for IT service management and user requests",
+        "HR systems for employee information and organizational charts",
+        "Badge/security systems for physical access information",
+        "Internal applications for role and permission data",
+        "External partner directories for contractor information"
+      ],
+      "challenges_solved": [
+        "Legacy system built hastily 3 years ago with limited functionality",
+        "Multiple disconnected data sources causing information silos",
+        "Numerous user feature requests accumulated over years",
+        "Inconsistent data formats across different source systems",
+        "Manual data updates prone to errors and delays",
+        "Poor search functionality and user experience"
+      ],
+      "technical_achievements": [
+        "Built flexible ETL framework for multiple data source integration",
+        "Implemented real-time data synchronization across all sources",
+        "Created comprehensive search functionality with OpenSearch",
+        "Designed modular data loader architecture for easy extension",
+        "Established data validation and quality checking mechanisms",
+        "Built user-friendly interface based on extensive user feedback"
+      ],
+      "business_impact": {
+        "user_satisfaction": "Addressed years of accumulated user feature requests",
+        "data_accuracy": "Eliminated manual data entry errors through automation",
+        "search_performance": "Improved search response times by 70%",
+        "productivity": "Reduced time spent searching for employee/organizational information",
+        "data_centralization": "Created single source of truth for directory information"
+      },
+      "data_scale": "10,000+ employees across multiple organizational structures, departments, and locations",
+      "integration_complexity": "6+ different data sources with varying APIs, data formats, and update frequencies"
+    }
+  },
+
+  "aws": {
+    "bp1": {
+      "project_name": "Region Build Deployment Automation",
+      "detailed_description": "Led comprehensive optimization of AWS Region Build deployment processes, transforming inefficient manual systems that were bottlenecking AWS infrastructure deployments. The original process required coordination across multiple teams, manual configuration steps, and lengthy deployment windows that often failed due to human error. Built extensive automation tools using Python, Infrastructure as Code principles, and CI/CD pipelines to streamline the entire workflow. Created monitoring dashboards, automated validation checks, and deployment orchestration systems that reduced build times by 40-55% across 15+ Service Catalog services and pipelines. The automation eliminated manual errors, improved deployment reliability, and freed up engineering teams for higher-value work.",
+      "technical_stack": [
+        "Python automation scripts", "AWS Service Catalog", "Jenkins CI/CD",
+        "AWS CodePipeline", "CloudFormation templates", "Terraform modules",
+        "AWS CLI", "Bash scripting", "CloudWatch dashboards", "SNS notifications",
+        "AWS Systems Manager", "Parameter Store", "IAM automation", "Lambda functions"
+      ],
+      "automation_scope": [
+        "15+ Service Catalog services across multiple AWS regions",
+        "Complex dependency management between services",
+        "Multi-stage deployment pipelines with validation checkpoints",
+        "Automated testing and rollback capabilities",
+        "Configuration management across different environments",
+        "Monitoring and alerting for deployment health"
+      ],
+      "optimization_achievements": [
+        "Reduced deployment time from 4+ hours to under 2 hours",
+        "Eliminated 90% of manual configuration steps",
+        "Created automated validation checks preventing deployment failures",
+        "Built comprehensive monitoring for deployment pipeline visibility",
+        "Established automated rollback procedures for failed deployments",
+        "Implemented parallel deployment strategies where dependencies allowed"
+      ],
+      "business_impact": {
+        "efficiency_gain": "40-55% reduction in deployment time across all services",
+        "error_reduction": "95% reduction in deployment failures due to manual errors",
+        "team_productivity": "Freed up 10+ engineers from manual deployment tasks",
+        "reliability": "Achieved 98% deployment success rate",
+        "cost_savings": "Reduced infrastructure provisioning costs through efficiency"
+      },
+      "technical_innovations": [
+        "Built dynamic dependency resolution for service deployment ordering",
+        "Created reusable CloudFormation templates for consistent deployments",
+        "Implemented automated parameter injection from central configuration",
+        "Designed parallel execution framework for independent service deployments",
+        "Established comprehensive logging and audit trails for all deployments"
+      ]
+    },
+
+    "bp2": {
+      "project_name": "Global AWS Region Expansion Infrastructure",
+      "detailed_description": "Led critical infrastructure deployment for AWS global expansion, deploying and updating Service Catalog services across 5 newly launched AWS regions: UAE, Melbourne, Spain, Zurich, and Hyderabad. This massive undertaking supported AWS's strategic global expansion by ensuring consistent service availability and functionality across all new regions. Managed complex coordination across international teams, time zones, and regulatory requirements. Built standardized deployment frameworks, established region-specific configuration management, and ensured compliance with local data sovereignty laws. The project required extensive automation, monitoring setup, and coordination with multiple AWS service teams to ensure seamless integration with existing global infrastructure.",
+      "technical_stack": [
+        "AWS Service Catalog", "Multi-region deployment", "Python automation",
+        "Ruby scripting", "AWS Control Tower", "AWS Organizations", "CloudFormation",
+        "Cross-region networking", "VPC peering", "Route53 global DNS",
+        "AWS Config", "CloudTrail", "Regional compliance tools"
+      ],
+      "regional_deployment_scope": [
+        "UAE: Middle East expansion with local compliance requirements",
+        "Melbourne: Asia-Pacific region with data residency laws",
+        "Spain: European expansion with GDPR compliance",
+        "Zurich: Swiss financial services compliance requirements", 
+        "Hyderabad: India expansion with local regulatory compliance"
+      ],
+      "coordination_challenges": [
+        "Managed deployments across 5 different time zones",
+        "Coordinated with 20+ international AWS service teams",
+        "Ensured compliance with varying regional data sovereignty laws",
+        "Established 24/7 support coverage for global regions",
+        "Created standardized procedures adaptable to regional requirements"
+      ],
+      "technical_achievements": [
+        "Built region-agnostic Service Catalog deployment framework",
+        "Established automated compliance checking for regional requirements",
+        "Created monitoring and alerting systems for all new regions",
+        "Implemented standardized network architecture across all regions",
+        "Built automated disaster recovery capabilities for each region",
+        "Established cross-region communication and data synchronization"
+      ],
+      "business_impact": {
+        "global_expansion": "Enabled AWS service availability in 5 critical new markets",
+        "revenue_impact": "Supported millions in new regional revenue opportunities",
+        "customer_reach": "Extended AWS services to new geographic customer bases",
+        "competitive_advantage": "First-to-market advantage in several regions",
+        "operational_excellence": "Established scalable framework for future region launches"
+      }
+    },
+
+    "bp3": {
+      "project_name": "Enterprise Security and Compliance Automation",
+      "detailed_description": "Led comprehensive security escalation response and automation initiative managing 2,400+ hosts across AWS's global infrastructure. Built automated security patching pipelines, vulnerability management systems, and compliance monitoring tools to ensure enterprise-wide security posture. The project involved coordinating with security teams across multiple regions, implementing automated threat detection and response, and establishing comprehensive audit trails for compliance requirements. Created sophisticated automation using AWS Systems Manager, custom Python security tools, and integrated monitoring systems to maintain high security standards while minimizing manual intervention and ensuring rapid response to security incidents.",
+      "technical_stack": [
+        "AWS Systems Manager", "AWS Inspector", "AWS Security Hub", "Custom Python tools",
+        "Automated patching workflows", "Vulnerability scanning", "Compliance monitoring",
+        "Security incident response automation", "CloudTrail logging", "Config rules",
+        "Lambda security functions", "SNS alerting", "Security group automation"
+      ],
+      "security_automation_scope": [
+        "2,400+ hosts across multiple AWS regions and availability zones",
+        "Mixed workload types: web servers, databases, application servers",
+        "Multiple operating systems: Amazon Linux, Ubuntu, Windows Server",
+        "Critical production systems requiring zero-downtime patching",
+        "Compliance with SOC2, ISO27001, and AWS security best practices"
+      ],
+      "automation_capabilities": [
+        "Automated patch deployment with staged rollouts",
+        "Real-time vulnerability scanning and assessment",
+        "Automated security group rule validation and remediation",
+        "Compliance monitoring with automated reporting",
+        "Security incident detection and initial response automation",
+        "Automated backup and recovery procedures for security events"
+      ],
+      "security_achievements": [
+        "Implemented automated patching reducing manual effort by 85%",
+        "Built comprehensive vulnerability management pipeline",
+        "Created security incident response automation reducing MTTR by 60%",
+        "Established automated compliance monitoring and reporting",
+        "Designed automated threat detection and initial containment procedures",
+        "Built security metrics dashboard for leadership visibility"
+      ],
+      "compliance_metrics": {
+        "patch_compliance": "99.5% automated patch compliance across all systems",
+        "vulnerability_response": "Reduced mean time to patch from 7 days to 24 hours",
+        "incident_response": "60% reduction in security incident response time",
+        "audit_readiness": "100% automated audit trail and compliance reporting",
+        "security_posture": "Achieved AWS Well-Architected security pillar compliance"
+      }
+    }
+  }
+}
