@@ -133,10 +133,13 @@
                     </h3>
                     <div class="flex flex-wrap gap-2" id="skills-tier_1_core">
                         {% for skill in skills.get('tier_1_core', []) %}
-                        <span class="skill-tag px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm flex items-center gap-2">
+                        <span class="skill-tag px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm flex items-center gap-1">
                             {{ skill.name }}
-                            <button onclick="editSkill({{ skill.id }}, '{{ skill.name }}', '{{ skill.tier }}')" class="hover:text-purple-900">
+                            <button onclick="editSkill({{ skill.id }}, '{{ skill.name }}', '{{ skill.tier }}')" class="hover:text-purple-900 ml-1" title="Edit">
                                 <i class="fas fa-edit text-xs"></i>
+                            </button>
+                            <button onclick="quickDeleteSkill({{ skill.id }}, '{{ skill.name }}')" class="hover:text-red-600 text-purple-400" title="Delete">
+                                <i class="fas fa-times text-xs"></i>
                             </button>
                         </span>
                         {% endfor %}
@@ -151,10 +154,13 @@
                     </h3>
                     <div class="flex flex-wrap gap-2" id="skills-tier_2_major">
                         {% for skill in skills.get('tier_2_major', []) %}
-                        <span class="skill-tag px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-2">
+                        <span class="skill-tag px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-1">
                             {{ skill.name }}
-                            <button onclick="editSkill({{ skill.id }}, '{{ skill.name }}', '{{ skill.tier }}')" class="hover:text-blue-900">
+                            <button onclick="editSkill({{ skill.id }}, '{{ skill.name }}', '{{ skill.tier }}')" class="hover:text-blue-900 ml-1" title="Edit">
                                 <i class="fas fa-edit text-xs"></i>
+                            </button>
+                            <button onclick="quickDeleteSkill({{ skill.id }}, '{{ skill.name }}')" class="hover:text-red-600 text-blue-400" title="Delete">
+                                <i class="fas fa-times text-xs"></i>
                             </button>
                         </span>
                         {% endfor %}
@@ -169,10 +175,13 @@
                     </h3>
                     <div class="flex flex-wrap gap-2" id="skills-tier_3_specialist">
                         {% for skill in skills.get('tier_3_specialist', []) %}
-                        <span class="skill-tag px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm flex items-center gap-2">
+                        <span class="skill-tag px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm flex items-center gap-1">
                             {{ skill.name }}
-                            <button onclick="editSkill({{ skill.id }}, '{{ skill.name }}', '{{ skill.tier }}')" class="hover:text-green-900">
+                            <button onclick="editSkill({{ skill.id }}, '{{ skill.name }}', '{{ skill.tier }}')" class="hover:text-green-900 ml-1" title="Edit">
                                 <i class="fas fa-edit text-xs"></i>
+                            </button>
+                            <button onclick="quickDeleteSkill({{ skill.id }}, '{{ skill.name }}')" class="hover:text-red-600 text-green-400" title="Delete">
+                                <i class="fas fa-times text-xs"></i>
                             </button>
                         </span>
                         {% endfor %}
@@ -187,10 +196,13 @@
                     </h3>
                     <div class="flex flex-wrap gap-2" id="skills-tier_4_tools">
                         {% for skill in skills.get('tier_4_tools', []) if not skill.is_blacklisted %}
-                        <span class="skill-tag px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm flex items-center gap-2">
+                        <span class="skill-tag px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm flex items-center gap-1">
                             {{ skill.name }}
-                            <button onclick="editSkill({{ skill.id }}, '{{ skill.name }}', '{{ skill.tier }}')" class="hover:text-gray-900">
+                            <button onclick="editSkill({{ skill.id }}, '{{ skill.name }}', '{{ skill.tier }}')" class="hover:text-gray-900 ml-1" title="Edit">
                                 <i class="fas fa-edit text-xs"></i>
+                            </button>
+                            <button onclick="quickDeleteSkill({{ skill.id }}, '{{ skill.name }}')" class="hover:text-red-600 text-gray-400" title="Delete">
+                                <i class="fas fa-times text-xs"></i>
                             </button>
                         </span>
                         {% endfor %}
@@ -347,12 +359,51 @@
         </div>
     </div>
 
+    <!-- Experience Edit Modal -->
+    <div id="experienceModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-8 max-w-lg w-full mx-4">
+            <h3 class="text-xl font-semibold mb-4">Edit Experience</h3>
+            <input type="hidden" id="editExpId">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Company</label>
+                    <input type="text" id="expCompany" class="w-full px-4 py-2 border border-gray-200 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Role / Title</label>
+                    <input type="text" id="expRole" class="w-full px-4 py-2 border border-gray-200 rounded-lg">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                        <input type="text" id="expStartDate" placeholder="YYYY-MM" class="w-full px-4 py-2 border border-gray-200 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                        <input type="text" id="expEndDate" placeholder="YYYY-MM or leave blank" class="w-full px-4 py-2 border border-gray-200 rounded-lg">
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="expIsCurrent" class="rounded">
+                    <label for="expIsCurrent" class="text-sm text-gray-700">This is my current role</label>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button onclick="closeExperienceModal()" class="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button onclick="saveExperience()" class="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast -->
     <div id="toast" class="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg hidden">
         <span id="toastMessage">Saved successfully!</span>
     </div>
 
     <script>
+        // Store experiences data for editing
+        const experiencesData = {{ experiences | tojson | safe }};
+    
         function showTab(tabName) {
             // Hide all panels
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
@@ -480,6 +531,19 @@
             }
         }
 
+        async function quickDeleteSkill(id, name) {
+            if (!confirm(`Delete "${name}"?`)) return;
+            
+            const response = await fetch(`/api/skills/${id}`, { method: 'DELETE' });
+            if (response.ok) {
+                showToast(`Deleted: ${name}`);
+                // Remove from DOM without full reload for faster mass deletion
+                event.target.closest('.skill-tag').remove();
+            } else {
+                showToast('Failed to delete', true);
+            }
+        }
+
         // Bullet point functions
         function showAddBulletModal(expId) {
             document.getElementById('bulletModalTitle').textContent = 'Add Bullet Point';
@@ -554,22 +618,68 @@
             }
         }
 
-        function showAddExperienceModal() {
-            const company = prompt('Company name:');
-            if (!company) return;
-            const role = prompt('Role/Title:');
-            if (!role) return;
+        function editExperience(id) {
+            // Find the experience in our data
+            const exp = experiencesData.find(e => e.id === id);
+            if (!exp) {
+                showToast('Experience not found', true);
+                return;
+            }
+            
+            document.getElementById('editExpId').value = id;
+            document.getElementById('expCompany').value = exp.company || '';
+            document.getElementById('expRole').value = exp.role || '';
+            document.getElementById('expStartDate').value = exp.start_date || '';
+            document.getElementById('expEndDate').value = exp.end_date || '';
+            document.getElementById('expIsCurrent').checked = exp.is_current || false;
+            
+            document.getElementById('experienceModal').classList.remove('hidden');
+            document.getElementById('experienceModal').classList.add('flex');
+        }
 
-            fetch('/api/experiences', {
-                method: 'POST',
+        function closeExperienceModal() {
+            document.getElementById('experienceModal').classList.add('hidden');
+            document.getElementById('experienceModal').classList.remove('flex');
+        }
+
+        async function saveExperience() {
+            const id = document.getElementById('editExpId').value;
+            const data = {
+                company: document.getElementById('expCompany').value,
+                role: document.getElementById('expRole').value,
+                start_date: document.getElementById('expStartDate').value || null,
+                end_date: document.getElementById('expEndDate').value || null,
+                is_current: document.getElementById('expIsCurrent').checked
+            };
+
+            const url = id ? `/api/experiences/${id}` : '/api/experiences';
+            const method = id ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ company, role })
-            }).then(r => {
-                if (r.ok) {
-                    showToast('Experience added!');
-                    location.reload();
-                }
+                body: JSON.stringify(data)
             });
+
+            if (response.ok) {
+                showToast(id ? 'Experience updated!' : 'Experience added!');
+                closeExperienceModal();
+                location.reload();
+            } else {
+                showToast('Failed to save experience', true);
+            }
+        }
+
+        function showAddExperienceModal() {
+            document.getElementById('editExpId').value = '';
+            document.getElementById('expCompany').value = '';
+            document.getElementById('expRole').value = '';
+            document.getElementById('expStartDate').value = '';
+            document.getElementById('expEndDate').value = '';
+            document.getElementById('expIsCurrent').checked = false;
+            
+            document.getElementById('experienceModal').classList.remove('hidden');
+            document.getElementById('experienceModal').classList.add('flex');
         }
     </script>
 </body>

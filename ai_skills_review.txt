@@ -1,0 +1,100 @@
+# AI Native Engineer Skills Review
+# Mark each skill: Y = Yes (add to approved), N = No (skip/blacklist), ? = Maybe
+# Format: Y/N/? | Skill Name | Category
+# 
+# After marking, run: python add_reviewed_skills.py
+# ================================================================
+
+# LLMs & AI Frameworks
+? | LangChain | ai_framework
+? | LlamaIndex | ai_framework
+? | OpenAI API | ai_api
+? | Anthropic Claude API | ai_api
+? | Hugging Face | ai_framework
+? | Transformers | ai_framework
+? | GPT-4 | ai_model
+? | Claude | ai_model
+? | Llama | ai_model
+? | Mistral | ai_model
+? | Gemini | ai_model
+? | Ollama | ai_tool
+? | vLLM | ai_tool
+
+# Vector Databases & RAG
+? | Pinecone | vector_db
+? | Weaviate | vector_db
+? | Chroma | vector_db
+? | Qdrant | vector_db
+? | Milvus | vector_db
+? | FAISS | vector_db
+? | pgvector | vector_db
+? | RAG | ai_concept
+? | Embeddings | ai_concept
+? | Semantic Search | ai_concept
+
+# ML/Data Science
+? | PyTorch | ml_framework
+? | TensorFlow | ml_framework
+? | Scikit-learn | ml_library
+? | NumPy | data_library
+? | Pandas | data_library
+? | Jupyter | tool
+? | MLflow | mlops
+? | Weights & Biases | mlops
+? | Feature Engineering | concept
+
+# Prompt Engineering & AI Ops
+? | Prompt Engineering | ai_concept
+? | Fine-tuning | ai_concept
+? | RLHF | ai_concept
+? | Chain of Thought | ai_concept
+? | Few-shot Learning | ai_concept
+? | AI Agents | ai_concept
+? | Function Calling | ai_concept
+? | Tool Use | ai_concept
+
+# Cloud AI Services
+? | AWS Bedrock | aws_ai
+? | AWS SageMaker | aws_ai
+? | Azure OpenAI | cloud_ai
+? | Google Vertex AI | cloud_ai
+
+# Data & Streaming
+? | Apache Kafka | messaging
+? | Apache Airflow | orchestration
+? | dbt | data_transform
+? | Snowflake | data_warehouse
+? | Databricks | data_platform
+? | Apache Spark | data_processing
+? | Redis | caching
+? | Celery | task_queue
+
+# APIs & Backend
+? | FastAPI | framework
+? | GraphQL | api
+? | gRPC | api
+? | REST APIs | api
+? | WebSockets | api
+? | Async Python | language
+
+# DevOps & Infrastructure
+? | Kubernetes | container_orchestration
+? | ArgoCD | gitops
+? | Helm | kubernetes
+? | Terraform | iac
+? | GitHub Actions | ci_cd
+? | Docker Compose | container
+
+# Monitoring & Observability
+? | Prometheus | monitoring
+? | Grafana | monitoring
+? | DataDog | monitoring
+? | OpenTelemetry | observability
+? | LangSmith | ai_observability
+? | Langfuse | ai_observability
+
+# Testing
+? | pytest | testing
+? | Pytest-asyncio | testing
+? | Locust | load_testing
+? | AI Evaluation | ai_testing

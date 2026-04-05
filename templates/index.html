@@ -178,7 +178,7 @@ Requirements:
 
     <!-- Footer -->
     <footer class="text-center py-6 text-gray-500 text-sm">
-        <p>Powered by Claude 3.5 Sonnet • Built with Flask</p>
+        <p>Powered by Claude • Built with Flask</p>
         <a href="/settings" class="text-purple-500 hover:text-purple-700 mt-2 inline-block">
             <i class="fas fa-cog mr-1"></i>Settings & Configuration
         </a>
@@ -307,11 +307,43 @@ Requirements:
                     const sourceUrlHtml = result.source_url 
                         ? `<a href="${result.source_url}" target="_blank" class="text-purple-500 hover:text-purple-700 text-xs flex items-center gap-1 mt-1"><i class="fas fa-external-link-alt"></i> Source</a>`
                         : '';
+                    
+                    // Build variants HTML
+                    let variantsHtml = '';
+                    if (result.variants && result.variants.length > 0) {
+                        variantsHtml = '<div class="mt-4 pt-4 border-t border-gray-100"><p class="text-xs text-gray-500 mb-2">CV Variants (ATS Scored):</p><div class="grid grid-cols-3 gap-2">';
+                        result.variants.forEach(v => {
+                            if (!v.error) {
+                                const isBest = v.variant === result.best_variant;
+                                const scoreColor = v.ats_score >= 80 ? 'text-green-600' : v.ats_score >= 60 ? 'text-yellow-600' : 'text-red-600';
+                                variantsHtml += `
+                                    <div class="p-2 rounded-lg ${isBest ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50'}">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-xs font-medium ${isBest ? 'text-purple-700' : 'text-gray-700'}">${v.variant_name}</span>
+                                            ${isBest ? '<span class="text-xs bg-purple-600 text-white px-1 rounded">Best</span>' : ''}
+                                        </div>
+                                        <div class="flex items-center gap-1">
+                                            <span class="text-sm font-bold ${scoreColor}">${v.ats_score.toFixed(0)}</span>
+                                            <span class="text-xs text-gray-400">/ 100</span>
+                                            <span class="text-xs ${scoreColor}">${v.ats_grade}</span>
+                                        </div>
+                                        <div class="flex gap-1 mt-1">
+                                            <a href="/download/${v.cv_docx_path}" class="text-xs text-blue-600 hover:underline">DOCX</a>
+                                            ${v.cv_pdf_path ? `<a href="/download/${v.cv_pdf_path}" class="text-xs text-red-600 hover:underline">PDF</a>` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        });
+                        variantsHtml += '</div></div>';
+                    }
+                    
                     card.innerHTML = `
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-4">
-                                <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                                    <span class="font-bold text-purple-600">${index + 1}</span>
+                                <div class="w-12 h-12 rounded-full bg-purple-100 flex flex-col items-center justify-center">
+                                    <span class="font-bold text-purple-600 text-lg">${result.best_ats_score ? result.best_ats_score.toFixed(0) : '?'}</span>
+                                    <span class="text-xs text-purple-400">ATS</span>
                                 </div>
                                 <div>
                                     <h4 class="font-semibold text-gray-800">${result.job_title}</h4>
@@ -320,16 +352,13 @@ Requirements:
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
-                                <a href="/download/${result.cv_path}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all text-sm flex items-center gap-2">
-                                    <i class="fas fa-file-word text-blue-600"></i>
-                                    CV
-                                </a>
                                 <a href="/download/${result.cover_letter_path}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all text-sm flex items-center gap-2">
                                     <i class="fas fa-file-pdf text-red-600"></i>
                                     Cover Letter
                                 </a>
                             </div>
                         </div>
+                        ${variantsHtml}
                     `;
                 } else {
                     const sourceInfo = result.source_url 

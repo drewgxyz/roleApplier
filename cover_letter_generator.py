@@ -6,6 +6,9 @@ from reportlab.lib.units import inch
 from datetime import datetime
 from job_parser import JobInfo
 
+# Model for cover letters - use Sonnet for quality writing
+CLAUDE_MODEL = "claude-sonnet-4-6"
+
 class CoverLetterGenerator:
     def __init__(self, api_key: str):
         """Initialize with Claude API key"""
@@ -57,7 +60,7 @@ class CoverLetterGenerator:
 
         try:
             response = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model=CLAUDE_MODEL,
                 max_tokens=600,  # Reduced for shorter letters
                 messages=[{"role": "user", "content": prompt}]
             )

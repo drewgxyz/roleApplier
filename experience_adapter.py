@@ -6,6 +6,9 @@ from typing import Dict
 from docx import Document
 from job_parser import JobInfo
 
+# Model for experience adaptation - use Sonnet for quality writing
+CLAUDE_MODEL = "claude-sonnet-4-6"
+
 class ExperienceAdapter:
     def __init__(self, api_key: str, original_cv_path: str = None, context_path: str = None, skills_config: dict = None):
         """Initialize with Claude API and optional original CV for reference"""
@@ -244,7 +247,7 @@ class ExperienceAdapter:
 
         try:
             response = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model=CLAUDE_MODEL,
                 max_tokens=2000,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -362,7 +365,7 @@ class ExperienceAdapter:
         
         try:
             response = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model=CLAUDE_MODEL,
                 max_tokens=2500,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -463,7 +466,7 @@ class ExperienceAdapter:
 
         try:
             response = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model=CLAUDE_MODEL,
                 max_tokens=1500,
                 temperature=0.7,  # <--- ADD THIS LINE. Increases creativity and verbosity.
                 messages=[{"role": "user", "content": strict_prompt}]

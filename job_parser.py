@@ -4,6 +4,9 @@ import re
 from dataclasses import dataclass
 from typing import List
 
+# Model for job parsing - use Sonnet for accuracy on skill extraction
+CLAUDE_MODEL = "claude-sonnet-4-6"
+
 @dataclass
 class JobInfo:
     """Structured job information extracted by AI"""
@@ -50,7 +53,7 @@ class AIJobParser:
 
         try:
             response = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model=CLAUDE_MODEL,
                 max_tokens=1500,
                 messages=[{"role": "user", "content": prompt}]
             )

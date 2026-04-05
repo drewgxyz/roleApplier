@@ -7,6 +7,7 @@ With configurable skills, experiences, and settings stored in SQLite
 import os
 import json
 import re
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for
@@ -16,6 +17,9 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from docx import Document
+from docx.shared import Pt
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 import zipfile
 import requests
 from bs4 import BeautifulSoup
@@ -29,6 +33,28 @@ from database import (
     add_bullet_point, update_bullet_point, delete_bullet_point, get_db
 )
 
+# Import ATS scorer
+from ats_scorer import ATSScorer, validate_single_page
+
+# CV Variant styles for different tones
+CV_VARIANTS = {
+    'professional': {
+        'name': 'Professional',
+        'description': 'Formal, corporate tone. Best for traditional companies.',
+        'tone_instruction': 'Use formal, professional language. Focus on achievements and responsibilities. Avoid casual phrases.',
+    },
+    'technical': {
+        'name': 'Technical',
+        'description': 'Tech-focused with detailed technical depth. Best for engineering roles.',
+        'tone_instruction': 'Emphasize technical details, specific technologies, and engineering achievements. Use precise technical terminology.',
+    },
+    'impact': {
+        'name': 'Impact-Driven',
+        'description': 'Results and metrics focused. Best for startups and growth companies.',
+        'tone_instruction': 'Lead with quantified results and business impact. Use action verbs and metrics prominently. Show ROI and efficiency gains.',
+    },
+}
+
 # Load environment variables
 load_dotenv()
 
@@ -36,12 +62,13 @@ app = Flask(__name__)
 
 # Configuration
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
-TEMPLATE_PATH = 'templates/template copy.docx'
+TEMPLATE_PATH = 'resources/template.docx'
 
-# Claude 3.5 Sonnet - Best for ATS-friendly CVs
-# Reasons: Excellent at following precise formatting, consistent structure,
-# professional language, and understanding context for skill matching
-CLAUDE_MODEL = "claude-3-5-sonnet-20241022"
+# Model configuration - use appropriate models for different tasks
+# Sonnet 4: Quality writing tasks (CV generation, cover letters, job parsing)
+# Haiku 3.5: Simple extraction/cleanup tasks (URL scraping, enhancement passes)
+CLAUDE_MODEL_QUALITY = "claude-sonnet-4-6"  # For quality-critical tasks
+CLAUDE_MODEL_FAST = "claude-3-haiku-20240307"  # For simpler tasks (10x cheaper)
 
 
 class BatchCVGenerator:
@@ -76,7 +103,7 @@ class BatchCVGenerator:
         """
         
         response = self.client.messages.create(
-            model=CLAUDE_MODEL,
+            model=CLAUDE_MODEL_QUALITY,
             max_tokens=1500,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -187,7 +214,7 @@ class BatchCVGenerator:
         
         return None
     
-    def generate_cv_and_cover_letter(self, job_info: dict) -> dict:
+    def generate_cv_and_cover_letter(self, job_info: dict, variant: str = 'professional') -> dict:
         """Generate both CV content and cover letter in a single LLM call"""
         
         # Get matched skills from job requirements
@@ -200,6 +227,10 @@ class BatchCVGenerator:
         # Get settings
         settings = self.settings
         expertise_count = int(settings.get('expertise_count', '14'))
+        
+        # Get variant tone instruction
+        variant_info = CV_VARIANTS.get(variant, CV_VARIANTS['professional'])
+        tone_instruction = variant_info['tone_instruction']
         
         skills_section = f"""
         MY APPROVED SKILLS (by priority tier):
@@ -219,10 +250,22 @@ class BatchCVGenerator:
         forbidden_keywords = r'\b(Senior|Lead|Principal|Staff|I|II|III|IV|DevOps)\b'
         sanitized_title = re.sub(forbidden_keywords, '', job_info.get('job_title', ''), flags=re.IGNORECASE).strip()
         
+        # Get current experience info
+        experiences = get_experiences()
+        current_exp = next((e for e in experiences if e.get('is_current')), None)
+        current_company = current_exp['company'] if current_exp else 'Compare the Market'
+        
         prompt = f"""
         Generate BOTH a customized CV and cover letter for this job application in a SINGLE response.
         
-        CRITICAL: This CV must be ATS-friendly. Use clear section headers, standard formatting, and include exact keyword matches from the job description.
+        WRITING STYLE: {tone_instruction}
+        
+        CRITICAL ATS REQUIREMENTS:
+        - Use exact keyword matches from job description
+        - Standard section headers only
+        - No special characters (use - not •)
+        - Plain text formatting
+        - Include quantified achievements with numbers
 
         TARGET JOB:
         - Position: {sanitized_title} at {job_info.get('company_name', 'Unknown Company')}
@@ -239,15 +282,15 @@ class BatchCVGenerator:
 
         MY BACKGROUND FOR COVER LETTER:
         - {settings.get('years_experience', '2.5')} years experience as Software Engineer
-        - Currently at T. Rowe Price (financial services)
-        - Previously at AWS (cloud infrastructure)
+        - Currently at {current_company}
+        - Previously at T. Rowe Price (financial services) and AWS (cloud infrastructure)
         - Education: {settings.get('education', 'BSc Cyber Security from Warwick University (2022)')}
         - Location: {settings.get('user_location', 'London, UK')}
 
         CRITICAL INSTRUCTIONS:
-        1. CV must fit on exactly 1 page - be concise but impactful
+        1. CV must fit on exactly 1 page - bio max 250 chars, bullet points max 300 chars each
         2. Bio: 2-3 sentences. NEVER use "Senior" or inflated titles. Use: Software Engineer, Software Developer, Backend Engineer
-        3. Bullet points: 50-70 words each, include specific technologies from MATCHED SKILLS and quantified metrics
+        3. Bullet points: 40-60 words each, include specific technologies from MATCHED SKILLS and quantified metrics (%, numbers, time saved)
         4. Expertise: Exactly {expertise_count} skills from MATCHED SKILLS list, programming languages first
         5. Tech stacks: Use technologies from MATCHED SKILLS that appear in the job description
         6. NEVER mention any BLACKLISTED SKILLS
@@ -257,20 +300,20 @@ class BatchCVGenerator:
         Return ONLY a JSON object with this exact structure:
         {{
             "cv": {{
-                "bio": "Updated bio paragraph - ATS optimized with keywords",
+                "bio": "Updated bio paragraph - ATS optimized with keywords (max 250 chars)",
                 "expertise": ["List of exactly {expertise_count} skills from MATCHED SKILLS"],
                 "t": {{
                     "skills": "Comma-separated tech stack string using MATCHED SKILLS",
-                    "bp1": "First bullet point with specific tech and metrics",
-                    "bp2": "Second bullet point with specific tech and metrics",
-                    "bp3": "Third bullet point with specific tech and metrics",
-                    "bp4": "Fourth bullet point with specific tech and metrics"
+                    "bp1": "First bullet point with specific tech and metrics (max 300 chars)",
+                    "bp2": "Second bullet point with specific tech and metrics (max 300 chars)",
+                    "bp3": "Third bullet point with specific tech and metrics (max 300 chars)",
+                    "bp4": "Fourth bullet point with specific tech and metrics (max 300 chars)"
                 }},
                 "a": {{
                     "skills": "Comma-separated tech stack string using MATCHED SKILLS",
-                    "bp1": "First bullet point",
-                    "bp2": "Second bullet point",
-                    "bp3": "Third bullet point"
+                    "bp1": "First bullet point (max 300 chars)",
+                    "bp2": "Second bullet point (max 300 chars)",
+                    "bp3": "Third bullet point (max 300 chars)"
                 }}
             }},
             "cover_letter": "Complete cover letter text (2-3 paragraphs). Use name: {settings.get('user_name', 'Drew Gillies')}. No placeholders."
@@ -278,7 +321,7 @@ class BatchCVGenerator:
         """
         
         response = self.client.messages.create(
-            model=CLAUDE_MODEL,
+            model=CLAUDE_MODEL_QUALITY,
             max_tokens=3500,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -289,8 +332,28 @@ class BatchCVGenerator:
         
         json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
         if json_match:
-            return json.loads(json_match.group())
+            result = json.loads(json_match.group())
+            
+            # Validate page length
+            is_valid, pages, suggestions = validate_single_page(result.get('cv', {}))
+            result['page_validation'] = {
+                'is_valid': is_valid,
+                'estimated_pages': pages,
+                'suggestions': suggestions
+            }
+            
+            return result
         raise ValueError("Could not parse CV generation response")
+    
+    def generate_all_variants(self, job_info: dict) -> dict:
+        """Generate all CV variants for a job"""
+        variants = {}
+        for variant_key in CV_VARIANTS.keys():
+            try:
+                variants[variant_key] = self.generate_cv_and_cover_letter(job_info, variant_key)
+            except Exception as e:
+                variants[variant_key] = {'error': str(e)}
+        return variants
     
     def create_cover_letter_pdf(self, cover_letter_text: str, job_info: dict, output_path: str):
         """Create a professional PDF cover letter"""
@@ -372,12 +435,22 @@ class BatchCVGenerator:
         story.append(Spacer(1, 12))
         doc.build(story)
     
-    def create_cv_docx(self, cv_data: dict, job_info: dict, output_path: str):
-        """Create CV document from template"""
+    def create_cv_docx(self, cv_data: dict, job_info: dict, output_path: str, create_pdf: bool = True):
+        """Create CV document from template with clean metadata"""
         if not Path(TEMPLATE_PATH).exists():
             raise FileNotFoundError(f"Template not found: {TEMPLATE_PATH}")
         
         doc = Document(TEMPLATE_PATH)
+        
+        # Clean metadata - remove any AI/tool indicators
+        core_props = doc.core_properties
+        core_props.author = self.settings.get('user_name', 'Drew Gillies')
+        core_props.title = f"CV - {self.settings.get('user_name', 'Drew Gillies')}"
+        core_props.subject = job_info.get('job_title', 'Software Engineer')
+        core_props.keywords = ''
+        core_props.comments = ''
+        core_props.category = ''
+        core_props.last_modified_by = self.settings.get('user_name', 'Drew Gillies')
         
         # Prepare replacements
         replacements = {
@@ -404,6 +477,43 @@ class BatchCVGenerator:
         self._replace_placeholders(doc, replacements)
         
         doc.save(output_path)
+        
+        # Create PDF version
+        if create_pdf:
+            pdf_path = output_path.replace('.docx', '.pdf')
+            self._convert_docx_to_pdf(output_path, pdf_path)
+            return pdf_path
+        return None
+    
+    def _convert_docx_to_pdf(self, docx_path: str, pdf_path: str):
+        """Convert DOCX to PDF using available tools"""
+        try:
+            # Try using LibreOffice (most reliable cross-platform)
+            result = subprocess.run([
+                'soffice', '--headless', '--convert-to', 'pdf',
+                '--outdir', str(Path(pdf_path).parent),
+                docx_path
+            ], capture_output=True, timeout=30)
+            
+            if result.returncode == 0:
+                # LibreOffice names output based on input filename
+                expected_pdf = Path(docx_path).with_suffix('.pdf')
+                if expected_pdf.exists() and str(expected_pdf) != pdf_path:
+                    expected_pdf.rename(pdf_path)
+                return True
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+        
+        try:
+            # Try docx2pdf (requires MS Word on Mac/Windows)
+            from docx2pdf import convert
+            convert(docx_path, pdf_path)
+            return True
+        except Exception:
+            pass
+        
+        # If no PDF converter available, skip PDF creation
+        return False
     
     def _replace_placeholders(self, doc, replacements):
         """Replace placeholders in document"""
@@ -423,33 +533,49 @@ class BatchCVGenerator:
                 self._replace_in_paragraph(paragraph, replacements)
     
     def _replace_in_paragraph(self, paragraph, replacements):
-        """Replace placeholders in a paragraph"""
-        full_text = paragraph.text
-        
+        """Replace placeholders in a paragraph - handles split runs"""
+        # First, try to find and replace in individual runs
         for key, value in replacements.items():
             placeholder = f"{{{{{key}}}}}"
             
-            if placeholder in full_text:
-                if key in ['t.skills', 'a.skills']:
-                    if isinstance(value, list):
-                        value_text = ', '.join(value)
-                    else:
-                        value_text = str(value)
-                elif isinstance(value, list):
-                    value_text = '\n• '.join(value)
-                    value_text = '• ' + value_text if value else ''
+            # Prepare replacement text
+            if key in ['t.skills', 'a.skills']:
+                if isinstance(value, list):
+                    value_text = ', '.join(value)
                 else:
-                    value_text = str(value).replace('\n', ' ').strip()
-                
-                for run in paragraph.runs:
-                    if placeholder in run.text:
-                        run.text = run.text.replace(placeholder, value_text)
+                    value_text = str(value)
+            elif isinstance(value, list):
+                value_text = ' • '.join(value)
+                value_text = '• ' + value_text if value else ''
+            else:
+                value_text = str(value).replace('\n', ' ').strip()
+            
+            # Method 1: Direct run replacement
+            for run in paragraph.runs:
+                if placeholder in run.text:
+                    run.text = run.text.replace(placeholder, value_text)
+            
+            # Method 2: If placeholder spans multiple runs, rebuild paragraph
+            full_text = paragraph.text
+            if placeholder in full_text:
+                # Placeholder exists but wasn't in a single run - it's split
+                new_text = full_text.replace(placeholder, value_text)
+                # Clear all runs and set text on first run
+                if paragraph.runs:
+                    # Preserve formatting from first run
+                    first_run = paragraph.runs[0]
+                    for run in paragraph.runs[1:]:
+                        run.text = ''
+                    first_run.text = new_text
 
 
 # URL Scraping functions
 
-def scrape_job_url(url: str) -> str:
-    """Scrape job description from a URL"""
+def scrape_job_url(url: str, use_llm: bool = True) -> str:
+    """
+    Scrape job description from a URL.
+    If use_llm=True, uses Claude to extract and clean the job description.
+    """
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -500,8 +626,12 @@ def scrape_job_url(url: str) -> str:
         lines = [line.strip() for line in text.split('\n') if line.strip()]
         text = '\n'.join(lines)
         
-        if len(text) > 8000:
-            text = text[:8000] + '\n[Content truncated...]'
+        if len(text) > 12000:
+            text = text[:12000] + '\n[Content truncated...]'
+        
+        # Use LLM to extract and clean the job description
+        if use_llm and ANTHROPIC_API_KEY:
+            text = llm_extract_job_description(text, url)
         
         return text
         
@@ -511,6 +641,126 @@ def scrape_job_url(url: str) -> str:
         raise Exception(f"Failed to fetch {url}: {str(e)}")
     except Exception as e:
         raise Exception(f"Error scraping {url}: {str(e)}")
+
+
+def llm_extract_job_description(raw_text: str, url: str) -> str:
+    """
+    Use Claude to extract and clean job description from raw scraped text.
+    This improves quality by removing navigation, ads, and irrelevant content.
+    """
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    
+    prompt = f"""
+    Extract the job description from this scraped web page content.
+    
+    URL: {url}
+    
+    RAW CONTENT:
+    {raw_text[:10000]}
+    
+    INSTRUCTIONS:
+    1. Extract ONLY the job posting content - remove navigation, ads, footers, cookie notices
+    2. Include: Job title, company name, location, requirements, responsibilities, benefits
+    3. Preserve the original wording of requirements and skills
+    4. Format cleanly with clear sections
+    5. If salary/compensation is mentioned, include it
+    6. Remove duplicate content
+    
+    Return ONLY the cleaned job description text, nothing else.
+    """
+    
+    try:
+        # Use Haiku for URL extraction - simple cleanup task
+        response = client.messages.create(
+            model=CLAUDE_MODEL_FAST,
+            max_tokens=2000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        extracted = response.content[0].text.strip()
+        
+        # Sanity check - if extraction is too short, return original
+        if len(extracted) < 200:
+            return raw_text
+        
+        return extracted
+        
+    except Exception as e:
+        print(f"LLM extraction failed: {e}, using raw text")
+        return raw_text
+
+
+def llm_enhance_cv_content(cv_data: dict, job_info: dict, variant: str) -> dict:
+    """
+    Use an additional LLM call to enhance and validate CV content quality.
+    Ensures bullet points have metrics, bio is compelling, and skills are relevant.
+    """
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    
+    required_skills = job_info.get('required_skills', [])
+    
+    prompt = f"""
+    CRITICAL: Enhance this CV content. Every bullet point MUST contain a number/metric.
+    
+    TARGET JOB:
+    - Title: {job_info.get('job_title')}
+    - Company: {job_info.get('company_name')}
+    - Required Skills: {', '.join(required_skills)}
+    
+    CURRENT CV CONTENT:
+    {json.dumps(cv_data, indent=2)}
+    
+    MANDATORY ENHANCEMENTS:
+    1. EVERY bullet point MUST have a quantified metric. Examples:
+       - "Reduced latency by 40%"
+       - "Processed 10,000+ requests per second"
+       - "Led team of 5 engineers"
+       - "Decreased deployment time from 2 hours to 15 minutes"
+       - "Saved £50,000 annually"
+       - "Achieved 99.9% uptime"
+    
+    2. Include these EXACT keywords from job requirements in bullet points: {', '.join(required_skills[:8])}
+    
+    3. Bio: 2-3 sentences, ~200 chars, mention 2-3 key technologies from job requirements
+    
+    4. Each bullet point: 200-280 characters, action verb + technology + quantified result
+    
+    5. Expertise list: Include these job-required skills: {', '.join(required_skills[:6])}
+    
+    Return the enhanced CV as JSON with SAME structure. EVERY bp1, bp2, bp3, bp4 MUST have a number:
+    {{
+        "bio": "Enhanced bio with key technologies",
+        "expertise": ["Python", "AWS", ...14 skills total],
+        "t": {{"skills": "Python, AWS Lambda, Docker, ...", "bp1": "Built X using Y, achieving Z% improvement", "bp2": "...", "bp3": "...", "bp4": "..."}},
+        "a": {{"skills": "...", "bp1": "...", "bp2": "...", "bp3": "..."}}
+    }}
+    
+    Return ONLY valid JSON.
+    """
+    
+    try:
+        # Use Haiku for enhancement - structured improvement task (called 3x per job)
+        response = client.messages.create(
+            model=CLAUDE_MODEL_FAST,
+            max_tokens=2500,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        response_text = response.content[0].text
+        # Clean and parse JSON
+        response_text = re.sub(r',\s*([\}\]])', r'\1', response_text)
+        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        
+        if json_match:
+            enhanced = json.loads(json_match.group())
+            print(f"    ✓ CV content enhanced (Haiku)")
+            return enhanced
+        
+        return cv_data
+        
+    except Exception as e:
+        print(f"    ⚠ Enhancement failed: {e}, using original")
+        return cv_data
 
 
 def is_url(text: str) -> bool:
@@ -686,7 +936,7 @@ def api_bullet(bp_id):
 
 @app.route('/generate', methods=['POST'])
 def generate():
-    """Generate CVs and cover letters for multiple job descriptions"""
+    """Generate CVs and cover letters for multiple job descriptions with variants and ATS scoring"""
     if not ANTHROPIC_API_KEY or ANTHROPIC_API_KEY == 'your_anthropic_api_key_here':
         return jsonify({
             'success': False,
@@ -696,6 +946,7 @@ def generate():
     data = request.json
     input_text = data.get('job_descriptions', '')
     input_mode = data.get('input_mode', 'text')
+    generate_variants = data.get('generate_variants', True)  # Generate all 3 variants by default
     
     if not input_text:
         return jsonify({
@@ -736,6 +987,7 @@ def generate():
         }), 400
     
     generator = BatchCVGenerator(ANTHROPIC_API_KEY)
+    ats_scorer = ATSScorer()
     results = []
     settings = get_settings()
     
@@ -752,9 +1004,6 @@ def generate():
             # Parse job description
             job_info = generator.parse_job_description(job_text)
             
-            # Generate CV and cover letter in single call
-            generated = generator.generate_cv_and_cover_letter(job_info)
-            
             # Create safe filename
             company_safe = re.sub(r'[^\w\s-]', '', job_info.get('company_name', 'Company')).replace(' ', '_')
             title_safe = re.sub(r'[^\w\s-]', '', job_info.get('job_title', 'Position')).replace(' ', '_')
@@ -763,15 +1012,82 @@ def generate():
             job_folder = output_dir / f"{i+1}_{company_safe}_{title_safe}"
             job_folder.mkdir(exist_ok=True)
             
-            # Save CV
             user_name = settings.get('user_name', 'Drew_Gillies').replace(' ', '_')
-            cv_path = job_folder / f"{user_name}_Software_Resume.docx"
-            generator.create_cv_docx(generated.get('cv', {}), job_info, str(cv_path))
+            job_skills = job_info.get('required_skills', []) + job_info.get('preferred_skills', [])
             
-            # Save cover letter
+            # Generate variants
+            variants_to_generate = list(CV_VARIANTS.keys()) if generate_variants else ['professional']
+            variant_results = []
+            best_variant = None
+            best_ats_score = 0
+            
+            for variant_key in variants_to_generate:
+                try:
+                    print(f"  Generating {variant_key} variant...")
+                    # Generate CV for this variant
+                    generated = generator.generate_cv_and_cover_letter(job_info, variant_key)
+                    cv_data = generated.get('cv', {})
+                    print(f"    CV data keys: {list(cv_data.keys())}")
+                    
+                    # Enhance CV content with additional LLM call
+                    cv_data = llm_enhance_cv_content(cv_data, job_info, variant_key)
+                    
+                    # Build CV text for ATS scoring
+                    cv_text = f"""
+                    {cv_data.get('bio', '')}
+                    Skills: {', '.join(cv_data.get('expertise', []))}
+                    Experience:
+                    {cv_data.get('t', {}).get('skills', '')}
+                    {cv_data.get('t', {}).get('bp1', '')}
+                    {cv_data.get('t', {}).get('bp2', '')}
+                    {cv_data.get('t', {}).get('bp3', '')}
+                    {cv_data.get('t', {}).get('bp4', '')}
+                    {cv_data.get('a', {}).get('skills', '')}
+                    {cv_data.get('a', {}).get('bp1', '')}
+                    {cv_data.get('a', {}).get('bp2', '')}
+                    {cv_data.get('a', {}).get('bp3', '')}
+                    """
+                    
+                    # Score with ATS
+                    ats_result = ats_scorer.score_cv(cv_text, job_text, job_skills)
+                    
+                    # Track best variant
+                    if ats_result['total_score'] > best_ats_score:
+                        best_ats_score = ats_result['total_score']
+                        best_variant = variant_key
+                    
+                    # Save CV (Word + PDF)
+                    variant_name = CV_VARIANTS[variant_key]['name']
+                    cv_docx_path = job_folder / f"{user_name}_CV_{variant_name}.docx"
+                    cv_pdf_path = generator.create_cv_docx(cv_data, job_info, str(cv_docx_path), create_pdf=True)
+                    
+                    variant_results.append({
+                        'variant': variant_key,
+                        'variant_name': variant_name,
+                        'cv_docx_path': str(cv_docx_path),
+                        'cv_pdf_path': str(cv_pdf_path) if cv_pdf_path else None,
+                        'ats_score': ats_result['total_score'],
+                        'ats_grade': ats_result['grade'],
+                        'ats_pass_likelihood': ats_result['ats_pass_likelihood'],
+                        'page_valid': generated.get('page_validation', {}).get('is_valid', True),
+                        'page_estimate': generated.get('page_validation', {}).get('estimated_pages', 1.0),
+                    })
+                    
+                except Exception as e:
+                    import traceback
+                    print(f"    ✗ Error generating {variant_key}: {e}")
+                    traceback.print_exc()
+                    variant_results.append({
+                        'variant': variant_key,
+                        'error': str(e)
+                    })
+            
+            # Generate cover letter (same for all variants)
             cover_letter_path = job_folder / f"{user_name}_Cover_Letter_{company_safe}.pdf"
+            # Use the best variant's cover letter
+            best_generated = generator.generate_cv_and_cover_letter(job_info, best_variant or 'professional')
             generator.create_cover_letter_pdf(
-                generated.get('cover_letter', ''),
+                best_generated.get('cover_letter', ''),
                 job_info,
                 str(cover_letter_path)
             )
@@ -784,17 +1100,33 @@ def generate():
                 f.write(f"Date Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
                 if source_url:
                     f.write(f"Source URL: {source_url}\n")
+                f.write(f"\nBest Variant: {best_variant} (ATS Score: {best_ats_score:.1f})\n")
                 f.write(f"\n{'='*50}\n")
                 f.write("ORIGINAL JOB DESCRIPTION:\n")
                 f.write(f"{'='*50}\n\n")
                 f.write(job_text)
+            
+            # Save ATS report
+            ats_report_path = job_folder / "ATS_Score_Report.txt"
+            with open(ats_report_path, 'w', encoding='utf-8') as f:
+                f.write("ATS COMPATIBILITY REPORT\n")
+                f.write("=" * 50 + "\n\n")
+                for vr in variant_results:
+                    if 'error' not in vr:
+                        f.write(f"{vr['variant_name']} Variant:\n")
+                        f.write(f"  Score: {vr['ats_score']:.1f}/100 ({vr['ats_grade']})\n")
+                        f.write(f"  Pass Likelihood: {vr['ats_pass_likelihood']}\n")
+                        f.write(f"  Page Valid: {'Yes' if vr['page_valid'] else 'No'} ({vr['page_estimate']:.2f} pages)\n\n")
+                f.write(f"\nRECOMMENDED: {CV_VARIANTS.get(best_variant, {}).get('name', 'Professional')} variant\n")
             
             results.append({
                 'success': True,
                 'job_title': job_info.get('job_title', 'Unknown'),
                 'company': job_info.get('company_name', 'Unknown'),
                 'source_url': source_url,
-                'cv_path': str(cv_path),
+                'variants': variant_results,
+                'best_variant': best_variant,
+                'best_ats_score': best_ats_score,
                 'cover_letter_path': str(cover_letter_path),
                 'folder': str(job_folder)
             })
@@ -824,7 +1156,8 @@ def generate():
         'total_jobs': len(jobs),
         'successful': sum(1 for r in results if r.get('success')),
         'failed': sum(1 for r in results if not r.get('success')),
-        'scrape_errors': scrape_errors
+        'scrape_errors': scrape_errors,
+        'variants_generated': list(CV_VARIANTS.keys()) if generate_variants else ['professional']
     })
 
 
