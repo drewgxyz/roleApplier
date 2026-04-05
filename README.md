@@ -1,13 +1,49 @@
-Hey
-
-source my-venv/bin/activate
-my-venv/bin/pip command
-
 # AI-Powered CV Customizer
 
 Automatically customize your CV for any job posting using AI. Just paste the entire job description, and get a perfectly tailored CV in seconds.
 
-## 🚀 Quick Start
+## 🌐 Web Application (Recommended - Batch Mode)
+
+**New!** Use the Flask web app to generate CVs and cover letters for multiple jobs at once.
+
+### Quick Start (Web App)
+
+1. **Set up virtual environment**:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+2. **Get OpenAI API key** from [OpenAI Platform](https://platform.openai.com/api-keys)
+
+3. **Create `.env` file** in the project root:
+   ```bash
+   OPENAI_API_KEY=your_openai_api_key_here
+   ```
+
+4. **Run the web app**:
+   ```bash
+   source venv/bin/activate
+   python web_app.py
+   ```
+
+5. **Open** http://localhost:5000 in your browser
+
+### Features
+- **Batch Processing**: Paste multiple job descriptions separated by `---` or triple newlines
+- **Single LLM Call**: CV and cover letter generated together for efficiency
+- **Modern UI**: Clean, responsive interface with TailwindCSS
+- **Download All**: Get a ZIP file with all generated applications
+- **Uses GPT-4o**: Latest OpenAI model for best results
+
+---
+
+## �️ CLI Mode (Original - Single Job)
+
+For single job processing using Claude API:
+
+### Quick Start (CLI)
 
 1. **Install dependencies**:
    ```bash
@@ -21,8 +57,8 @@ Automatically customize your CV for any job posting using AI. Just paste the ent
    - Add your API key to the config file
 
 4. **Add your files**:
-   - Place your CV template in `resources/template.docx`
-   - Place your original CV in `resources/orig.docx`
+   - Place your CV template in `templates/template copy.docx`
+   - Place your original CV in `data/orig.docx`
 
 5. **Run the app**:
    ```bash

@@ -3,3 +3,9 @@ docx2pdf
 pyyaml
 docx
 reportlab
+flask
+python-dotenv
+openai
+anthropic
+requests
+beautifulsoup4

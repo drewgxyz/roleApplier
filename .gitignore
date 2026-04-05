@@ -37,6 +37,9 @@ share/python-wheels/
 MANIFEST
 
 resources/
+.resources/
+.resources/*
+resources/*
 
 # Virtual Environments
 .env
