@@ -32,10 +32,11 @@ class CoverLetterGenerator:
         - Key Responsibilities: {', '.join(job_info.key_responsibilities[:5])}
 
         MY BACKGROUND:
-        - 2.5 years experience as Software Engineer
-        - Currently at T. Rowe Price (financial services)
-        - Previously at AWS (cloud infrastructure)
-        - Key skills: Python, Java, AWS, SQL, data migration, cloud architecture
+        - 3.5 years experience as Software Engineer (since July 2022)
+        - Currently at Compare the Market as Software Engineer - AI Native (since October 2025)
+        - Previously at T. Rowe Price (financial services, enterprise data migration)
+        - Previously at AWS (cloud infrastructure, systems automation)
+        - Key skills: Python, LangChain, LangGraph, AWS, PostgreSQL, Redis, AI/ML automation, data migration
         - Education: BSc Cyber Security from Warwick University (2022)
         - Location: London, UK
 

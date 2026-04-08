@@ -24,6 +24,7 @@ import zipfile
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
+from typing import List, Optional
 
 # Import database functions
 from database import (
@@ -255,23 +256,30 @@ class BatchCVGenerator:
         current_exp = next((e for e in experiences if e.get('is_current')), None)
         current_company = current_exp['company'] if current_exp else 'Compare the Market'
         
+        # Extract ATS phrases from raw job text if available
+        raw_job_text = job_info.get('raw_text', '')
+        ats_phrases = []
+        if raw_job_text:
+            from web_app import extract_ats_phrases
+            ats_phrases = extract_ats_phrases(raw_job_text)
+        
         prompt = f"""
         Generate BOTH a customized CV and cover letter for this job application in a SINGLE response.
         
         WRITING STYLE: {tone_instruction}
         
-        CRITICAL ATS REQUIREMENTS:
-        - Use exact keyword matches from job description
-        - Standard section headers only
-        - No special characters (use - not •)
-        - Plain text formatting
-        - Include quantified achievements with numbers
+        CRITICAL ATS REQUIREMENTS (ATS systems do EXACT string matching):
+        1. You MUST include these EXACT phrases verbatim in your bullet points: {', '.join(ats_phrases[:10]) if ats_phrases else ', '.join(job_info.get('required_skills', [])[:10])}
+        2. Every bullet point MUST contain at least one number/metric (%, time, money, count)
+        3. Use standard section headers only
+        4. No special characters (use - not •)
+        5. Mirror the exact language from the job description
 
         TARGET JOB:
         - Position: {sanitized_title} at {job_info.get('company_name', 'Unknown Company')}
         - Location: {job_info.get('location', 'Not specified')}
         - Industry: {job_info.get('industry', 'Technology')}
-        - Required Skills: {', '.join(job_info.get('required_skills', []))}
+        - Required Skills (MUST appear in CV): {', '.join(job_info.get('required_skills', []))}
         - Preferred Skills: {', '.join(job_info.get('preferred_skills', []))}
         - Key Responsibilities: {', '.join(job_info.get('key_responsibilities', []))}
 
@@ -281,9 +289,11 @@ class BatchCVGenerator:
         {experience_context}
 
         MY BACKGROUND FOR COVER LETTER:
-        - {settings.get('years_experience', '2.5')} years experience as Software Engineer
-        - Currently at {current_company}
-        - Previously at T. Rowe Price (financial services) and AWS (cloud infrastructure)
+        - {settings.get('years_experience', '3.5')} years experience as Software Engineer (since July 2022)
+        - Currently at {current_company} as Software Engineer - AI Native (since October 2025)
+        - Previously at T. Rowe Price (financial services, enterprise data migration)
+        - Previously at AWS (cloud infrastructure, systems automation)
+        - Key focus: AI/ML automation, LangChain, LangGraph, Python, AWS
         - Education: {settings.get('education', 'BSc Cyber Security from Warwick University (2022)')}
         - Location: {settings.get('user_location', 'London, UK')}
 
@@ -302,6 +312,13 @@ class BatchCVGenerator:
             "cv": {{
                 "bio": "Updated bio paragraph - ATS optimized with keywords (max 250 chars)",
                 "expertise": ["List of exactly {expertise_count} skills from MATCHED SKILLS"],
+                "c": {{
+                    "skills": "Comma-separated tech stack for Compare the Market (AI/ML focus): LangChain, LangGraph, Python, AWS, Redis, PostgreSQL",
+                    "bp1": "AI automation bullet - PRD to JIRA project with metrics (max 300 chars)",
+                    "bp2": "Agent orchestration bullet with tech and metrics (max 300 chars)",
+                    "bp3": "SDLC automation bullet - code review tool with metrics (max 300 chars)",
+                    "bp4": "Mentoring/workshops bullet (max 300 chars)"
+                }},
                 "t": {{
                     "skills": "Comma-separated tech stack string using MATCHED SKILLS",
                     "bp1": "First bullet point with specific tech and metrics (max 300 chars)",
@@ -456,11 +473,19 @@ class BatchCVGenerator:
         replacements = {
             'bio': cv_data.get('bio', ''),
             'expertise': cv_data.get('expertise', []),
+            # Compare the Market (current role)
+            'c.skills': cv_data.get('c', {}).get('skills', ''),
+            'c.bp1': cv_data.get('c', {}).get('bp1', ''),
+            'c.bp2': cv_data.get('c', {}).get('bp2', ''),
+            'c.bp3': cv_data.get('c', {}).get('bp3', ''),
+            'c.bp4': cv_data.get('c', {}).get('bp4', ''),
+            # T. Rowe Price
             't.skills': cv_data.get('t', {}).get('skills', ''),
             't.bp1': cv_data.get('t', {}).get('bp1', ''),
             't.bp2': cv_data.get('t', {}).get('bp2', ''),
             't.bp3': cv_data.get('t', {}).get('bp3', ''),
             't.bp4': cv_data.get('t', {}).get('bp4', ''),
+            # AWS
             'a.skills': cv_data.get('a', {}).get('skills', ''),
             'a.bp1': cv_data.get('a', {}).get('bp1', ''),
             'a.bp2': cv_data.get('a', {}).get('bp2', ''),
@@ -690,49 +715,92 @@ def llm_extract_job_description(raw_text: str, url: str) -> str:
         return raw_text
 
 
+def extract_ats_phrases(job_text: str) -> List[str]:
+    """Extract high-value ATS phrases from job description"""
+    job_lower = job_text.lower()
+    phrases = []
+    
+    # Known tech phrases
+    tech_phrases = [
+        'aws lambda', 'aws s3', 'aws dynamodb', 'aws sqs', 'ci/cd', 'ci cd',
+        'github actions', 'docker', 'kubernetes', 'terraform', 'postgresql',
+        'restful api', 'rest api', 'microservices', 'data pipeline', 'etl',
+        'agile', 'scrum', 'unit testing', 'integration testing', 'python',
+        'java', 'javascript', 'typescript', 'react', 'node.js', 'sql',
+        'cloud infrastructure', 'infrastructure as code', 'event-driven',
+        'distributed systems', 'api design', 'system design', 'data migration',
+    ]
+    
+    for phrase in tech_phrases:
+        if phrase in job_lower:
+            phrases.append(phrase)
+    
+    return phrases[:15]  # Top 15 phrases
+
+
 def llm_enhance_cv_content(cv_data: dict, job_info: dict, variant: str) -> dict:
     """
     Use an additional LLM call to enhance and validate CV content quality.
     Ensures bullet points have metrics, bio is compelling, and skills are relevant.
+    Uses exact phrases from job description for ATS optimization.
     """
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     
     required_skills = job_info.get('required_skills', [])
+    preferred_skills = job_info.get('preferred_skills', [])
+    responsibilities = job_info.get('key_responsibilities', [])
+    
+    # Extract exact phrases from job for ATS matching
+    job_text = job_info.get('raw_text', '')
+    ats_phrases = extract_ats_phrases(job_text) if job_text else required_skills[:10]
     
     prompt = f"""
-    CRITICAL: Enhance this CV content. Every bullet point MUST contain a number/metric.
+    CRITICAL: Optimize this CV for ATS (Applicant Tracking Systems). 
     
     TARGET JOB:
     - Title: {job_info.get('job_title')}
     - Company: {job_info.get('company_name')}
-    - Required Skills: {', '.join(required_skills)}
+    - Industry: {job_info.get('industry', 'Technology')}
+    
+    EXACT PHRASES TO INCLUDE (use these verbatim for ATS matching):
+    {', '.join(ats_phrases)}
+    
+    REQUIRED SKILLS (must appear in CV):
+    {', '.join(required_skills[:10])}
+    
+    KEY RESPONSIBILITIES FROM JOB (mirror this language):
+    {'; '.join(responsibilities[:5]) if responsibilities else 'Not specified'}
     
     CURRENT CV CONTENT:
     {json.dumps(cv_data, indent=2)}
     
-    MANDATORY ENHANCEMENTS:
-    1. EVERY bullet point MUST have a quantified metric. Examples:
-       - "Reduced latency by 40%"
-       - "Processed 10,000+ requests per second"
-       - "Led team of 5 engineers"
-       - "Decreased deployment time from 2 hours to 15 minutes"
-       - "Saved £50,000 annually"
-       - "Achieved 99.9% uptime"
+    ATS OPTIMIZATION RULES (CRITICAL - ATS systems reject CVs that don't match):
+    1. EVERY bullet point MUST have a quantified metric (%, number, time, money saved)
+    2. You MUST include ALL of these exact phrases somewhere in the CV: {', '.join(ats_phrases[:12]) if ats_phrases else ', '.join(required_skills[:12])}
+    3. Distribute required skills across ALL bullet points - don't cluster them
+    4. Mirror exact job language - "CI/CD pipelines" not "CI/CD", "RESTful API" not "REST API"
+    5. Start bullets with action verbs: Built, Developed, Implemented, Designed, Architected, Led, Reduced
+    6. Each bullet: 200-280 chars, format: [Verb] + [2-3 technologies from job] + [metric]
     
-    2. Include these EXACT keywords from job requirements in bullet points: {', '.join(required_skills[:8])}
+    MANDATORY PHRASE PLACEMENT (ensure these appear):
+    - Bio: Include {', '.join(required_skills[:3])}
+    - T. Rowe Price bullets: Include {', '.join(required_skills[3:7]) if len(required_skills) > 3 else ''}
+    - AWS bullets: Include {', '.join(required_skills[7:11]) if len(required_skills) > 7 else ''}
+    - Expertise list: Start with {', '.join(required_skills[:8])}
     
-    3. Bio: 2-3 sentences, ~200 chars, mention 2-3 key technologies from job requirements
+    EXAMPLES OF HIGH-SCORING ATS BULLETS:
+    - "Developed RESTful APIs using Python and AWS Lambda, processing 50,000+ daily requests with 99.9% uptime"
+    - "Implemented CI/CD pipelines with GitHub Actions and Jenkins, reducing deployment time by 75%"
+    - "Built microservices architecture using Docker and Kubernetes, scaling to handle 3x traffic increase"
+    - "Designed data migration tools with PostgreSQL and AWS S3, migrating 2M+ records with zero data loss"
     
-    4. Each bullet point: 200-280 characters, action verb + technology + quantified result
-    
-    5. Expertise list: Include these job-required skills: {', '.join(required_skills[:6])}
-    
-    Return the enhanced CV as JSON with SAME structure. EVERY bp1, bp2, bp3, bp4 MUST have a number:
+    Return enhanced CV as JSON:
     {{
-        "bio": "Enhanced bio with key technologies",
-        "expertise": ["Python", "AWS", ...14 skills total],
-        "t": {{"skills": "Python, AWS Lambda, Docker, ...", "bp1": "Built X using Y, achieving Z% improvement", "bp2": "...", "bp3": "...", "bp4": "..."}},
-        "a": {{"skills": "...", "bp1": "...", "bp2": "...", "bp3": "..."}}
+        "bio": "ATS-optimized bio mentioning key technologies",
+        "expertise": ["skill1", "skill2", ...14 skills],
+        "c": {{"skills": "LangChain, LangGraph, Python, AWS, Redis, PostgreSQL", "bp1": "...", "bp2": "...", "bp3": "...", "bp4": "..."}},
+        "t": {{"skills": "comma-separated tech stack", "bp1": "...", "bp2": "...", "bp3": "...", "bp4": "..."}},
+        "a": {{"skills": "comma-separated tech stack", "bp1": "...", "bp2": "...", "bp3": "..."}}
     }}
     
     Return ONLY valid JSON.
@@ -991,9 +1059,11 @@ def generate():
     results = []
     settings = get_settings()
     
-    # Create output directory
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = Path(f"outputs/batch_{timestamp}")
+    # Create output directory with readable date/time
+    now = datetime.now()
+    date_str = now.strftime("%d-%b-%Y")  # e.g., "05-Apr-2026"
+    time_str = now.strftime("%H%M")  # e.g., "2058"
+    output_dir = Path(f"outputs/{date_str}_{time_str}")
     output_dir.mkdir(parents=True, exist_ok=True)
     
     for i, job_data in enumerate(jobs):
@@ -1003,13 +1073,15 @@ def generate():
         try:
             # Parse job description
             job_info = generator.parse_job_description(job_text)
+            # Store raw text for ATS phrase extraction
+            job_info['raw_text'] = job_text
             
             # Create safe filename
             company_safe = re.sub(r'[^\w\s-]', '', job_info.get('company_name', 'Company')).replace(' ', '_')
             title_safe = re.sub(r'[^\w\s-]', '', job_info.get('job_title', 'Position')).replace(' ', '_')
             
-            # Create job-specific folder
-            job_folder = output_dir / f"{i+1}_{company_safe}_{title_safe}"
+            # Create job-specific folder with clear naming
+            job_folder = output_dir / f"{company_safe}_{title_safe}"
             job_folder.mkdir(exist_ok=True)
             
             user_name = settings.get('user_name', 'Drew_Gillies').replace(' ', '_')
@@ -1037,6 +1109,11 @@ def generate():
                     {cv_data.get('bio', '')}
                     Skills: {', '.join(cv_data.get('expertise', []))}
                     Experience:
+                    {cv_data.get('c', {}).get('skills', '')}
+                    {cv_data.get('c', {}).get('bp1', '')}
+                    {cv_data.get('c', {}).get('bp2', '')}
+                    {cv_data.get('c', {}).get('bp3', '')}
+                    {cv_data.get('c', {}).get('bp4', '')}
                     {cv_data.get('t', {}).get('skills', '')}
                     {cv_data.get('t', {}).get('bp1', '')}
                     {cv_data.get('t', {}).get('bp2', '')}
@@ -1058,8 +1135,13 @@ def generate():
                     
                     # Save CV (Word + PDF)
                     variant_name = CV_VARIANTS[variant_key]['name']
-                    cv_docx_path = job_folder / f"{user_name}_CV_{variant_name}.docx"
+                    cv_docx_path = job_folder / f"CV_{variant_name}_{company_safe}.docx"
                     cv_pdf_path = generator.create_cv_docx(cv_data, job_info, str(cv_docx_path), create_pdf=True)
+                    
+                    # Extract ATS feedback for UI
+                    kw_details = ats_result.get('breakdown', {}).get('keywords', {}).get('details', {})
+                    missing_phrases = kw_details.get('missing_phrases', [])[:5]
+                    missing_keywords = kw_details.get('missing_keywords', [])[:3]
                     
                     variant_results.append({
                         'variant': variant_key,
@@ -1069,6 +1151,9 @@ def generate():
                         'ats_score': ats_result['total_score'],
                         'ats_grade': ats_result['grade'],
                         'ats_pass_likelihood': ats_result['ats_pass_likelihood'],
+                        'ats_feedback': ats_result.get('feedback', []),
+                        'missing_phrases': missing_phrases,
+                        'missing_keywords': missing_keywords,
                         'page_valid': generated.get('page_validation', {}).get('is_valid', True),
                         'page_estimate': generated.get('page_validation', {}).get('estimated_pages', 1.0),
                     })
@@ -1083,7 +1168,7 @@ def generate():
                     })
             
             # Generate cover letter (same for all variants)
-            cover_letter_path = job_folder / f"{user_name}_Cover_Letter_{company_safe}.pdf"
+            cover_letter_path = job_folder / f"Cover_Letter_{company_safe}.pdf"
             # Use the best variant's cover letter
             best_generated = generator.generate_cv_and_cover_letter(job_info, best_variant or 'professional')
             generator.create_cover_letter_pdf(
@@ -1175,7 +1260,7 @@ if __name__ == '__main__':
     
     print("🚀 Starting CV Generator Web App")
     print("=" * 40)
-    print(f"📊 Using Claude Model: {CLAUDE_MODEL}")
+    # print(f"📊 Using Claude Model: {CLAUDE_MODEL}")
     print("   (Best for ATS-friendly CVs)")
     
     if not ANTHROPIC_API_KEY or ANTHROPIC_API_KEY == 'your_anthropic_api_key_here':

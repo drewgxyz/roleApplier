@@ -316,8 +316,16 @@ Requirements:
                             if (!v.error) {
                                 const isBest = v.variant === result.best_variant;
                                 const scoreColor = v.ats_score >= 80 ? 'text-green-600' : v.ats_score >= 60 ? 'text-yellow-600' : 'text-red-600';
+                                const bgColor = v.ats_score >= 80 ? 'bg-green-50' : v.ats_score >= 60 ? 'bg-yellow-50' : 'bg-red-50';
+                                
+                                // Show missing keywords if score < 80
+                                let missingHtml = '';
+                                if (v.ats_score < 80 && v.missing_phrases && v.missing_phrases.length > 0) {
+                                    missingHtml = `<div class="mt-1 text-xs text-gray-500">Missing: ${v.missing_phrases.slice(0, 3).join(', ')}</div>`;
+                                }
+                                
                                 variantsHtml += `
-                                    <div class="p-2 rounded-lg ${isBest ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50'}">
+                                    <div class="p-2 rounded-lg ${isBest ? 'bg-purple-50 border border-purple-200' : bgColor}">
                                         <div class="flex items-center justify-between mb-1">
                                             <span class="text-xs font-medium ${isBest ? 'text-purple-700' : 'text-gray-700'}">${v.variant_name}</span>
                                             ${isBest ? '<span class="text-xs bg-purple-600 text-white px-1 rounded">Best</span>' : ''}
@@ -331,6 +339,7 @@ Requirements:
                                             <a href="/download/${v.cv_docx_path}" class="text-xs text-blue-600 hover:underline">DOCX</a>
                                             ${v.cv_pdf_path ? `<a href="/download/${v.cv_pdf_path}" class="text-xs text-red-600 hover:underline">PDF</a>` : ''}
                                         </div>
+                                        ${missingHtml}
                                     </div>
                                 `;
                             }

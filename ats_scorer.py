@@ -22,7 +22,41 @@ Key ATS factors:
 
 import re
 from collections import Counter
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Set
+
+
+# High-value technical phrases that ATS systems look for
+TECH_PHRASES = [
+    # Cloud & Infrastructure
+    'aws lambda', 'aws s3', 'aws ec2', 'aws dynamodb', 'aws sqs', 'aws sns',
+    'aws cloudformation', 'aws cloudwatch', 'amazon web services',
+    'google cloud', 'gcp', 'azure', 'cloud infrastructure', 'cloud native',
+    'infrastructure as code', 'iac',
+    # DevOps & CI/CD
+    'ci/cd', 'ci cd', 'continuous integration', 'continuous deployment',
+    'github actions', 'jenkins', 'gitlab ci', 'circleci', 'azure devops',
+    'docker', 'kubernetes', 'k8s', 'container orchestration', 'helm',
+    'terraform', 'ansible', 'puppet', 'chef',
+    # Programming & Frameworks
+    'python', 'java', 'javascript', 'typescript', 'golang', 'rust',
+    'react', 'angular', 'vue', 'node.js', 'nodejs', 'express',
+    'django', 'flask', 'fastapi', 'spring boot', 'spring framework',
+    # Data & Databases
+    'postgresql', 'mysql', 'mongodb', 'redis', 'elasticsearch',
+    'data pipeline', 'etl', 'data engineering', 'data migration',
+    'apache kafka', 'apache spark', 'apache airflow',
+    'sql', 'nosql', 'database design', 'data modeling',
+    # API & Architecture
+    'restful api', 'rest api', 'graphql', 'api design', 'api development',
+    'microservices', 'microservice architecture', 'event-driven',
+    'distributed systems', 'system design', 'software architecture',
+    # Methodologies
+    'agile', 'scrum', 'kanban', 'test-driven development', 'tdd',
+    'unit testing', 'integration testing', 'automated testing',
+    # Soft Skills (often required)
+    'cross-functional', 'stakeholder management', 'technical leadership',
+    'mentoring', 'code review', 'documentation',
+]
 
 
 class ATSScorer:
@@ -107,13 +141,47 @@ class ATSScorer:
             'ats_pass_likelihood': self._get_pass_likelihood(total_score)
         }
     
+    def _extract_job_phrases(self, job_description: str) -> List[str]:
+        """Extract important multi-word phrases from job description"""
+        job_lower = job_description.lower()
+        found_phrases = []
+        
+        # Check for known tech phrases
+        for phrase in TECH_PHRASES:
+            if phrase in job_lower:
+                found_phrases.append(phrase)
+        
+        # Extract quoted phrases (often exact requirements)
+        quoted = re.findall(r'["\']([^"\']+)["\']', job_lower)
+        found_phrases.extend([q.strip() for q in quoted if len(q.strip()) > 3])
+        
+        # Extract phrases after "experience with/in", "knowledge of", "proficiency in"
+        exp_patterns = [
+            r'experience (?:with|in) ([a-z0-9\s,/\-]+?)(?:\.|,|and|$)',
+            r'knowledge of ([a-z0-9\s,/\-]+?)(?:\.|,|and|$)',
+            r'proficiency in ([a-z0-9\s,/\-]+?)(?:\.|,|and|$)',
+            r'familiar with ([a-z0-9\s,/\-]+?)(?:\.|,|and|$)',
+            r'working with ([a-z0-9\s,/\-]+?)(?:\.|,|and|$)',
+        ]
+        
+        for pattern in exp_patterns:
+            matches = re.findall(pattern, job_lower)
+            for match in matches:
+                # Split on commas and clean
+                parts = [p.strip() for p in match.split(',')]
+                found_phrases.extend([p for p in parts if len(p) > 2])
+        
+        return list(set(found_phrases))
+    
     def _score_keywords(self, cv_text: str, job_description: str, job_skills: List[str]) -> Tuple[float, dict]:
-        """Score keyword matching between CV and job description"""
+        """Score keyword and phrase matching between CV and job description"""
         cv_lower = cv_text.lower()
         job_lower = job_description.lower()
         
-        # Extract important keywords from job description
-        # Focus on: skills, tools, technologies, action verbs
+        # 1. Extract phrases from job description (high value)
+        job_phrases = self._extract_job_phrases(job_description)
+        
+        # 2. Extract single keywords
         job_words = re.findall(r'\b[a-zA-Z]{3,}\b', job_lower)
         job_word_freq = Counter(job_words)
         
@@ -127,32 +195,51 @@ class ATSScorer:
         for skill in job_skills:
             important_keywords.add(skill.lower())
         
-        # Count matches
-        matched = []
-        missing = []
+        # 3. Score phrase matches (weighted 2x)
+        phrase_matched = []
+        phrase_missing = []
+        for phrase in job_phrases:
+            if phrase in cv_lower:
+                phrase_matched.append(phrase)
+            else:
+                phrase_missing.append(phrase)
         
+        # 4. Score keyword matches
+        keyword_matched = []
+        keyword_missing = []
         for keyword in important_keywords:
             if keyword in cv_lower or keyword.replace('-', ' ') in cv_lower:
-                matched.append(keyword)
+                keyword_matched.append(keyword)
             else:
-                missing.append(keyword)
+                keyword_missing.append(keyword)
         
-        if not important_keywords:
+        # Calculate weighted score (phrases worth 2x)
+        total_items = len(job_phrases) * 2 + len(important_keywords)
+        if total_items == 0:
             return 70.0, {'matched': 0, 'total': 0, 'missing': []}
         
-        match_rate = len(matched) / len(important_keywords) * 100
+        matched_score = len(phrase_matched) * 2 + len(keyword_matched)
+        match_rate = matched_score / total_items * 100
+        
+        # Combine missing items, prioritizing phrases
+        all_missing = phrase_missing + [k for k in keyword_missing if k not in phrase_missing]
         
         # Feedback
         if match_rate < 60:
-            self.feedback.append(f"Low keyword match ({len(matched)}/{len(important_keywords)}). Consider adding: {', '.join(missing[:5])}")
+            self.feedback.append(f"Low keyword match. Add these exact phrases: {', '.join(phrase_missing[:3])}")
+            if keyword_missing:
+                self.feedback.append(f"Also missing keywords: {', '.join(keyword_missing[:3])}")
         elif match_rate < 80:
-            self.feedback.append(f"Good keyword coverage. Missing: {', '.join(missing[:3])}")
+            self.feedback.append(f"Good coverage. Consider adding: {', '.join(all_missing[:3])}")
         
         return min(match_rate, 100), {
-            'matched': len(matched),
-            'total': len(important_keywords),
+            'phrases_matched': len(phrase_matched),
+            'phrases_total': len(job_phrases),
+            'keywords_matched': len(keyword_matched),
+            'keywords_total': len(important_keywords),
             'match_rate': f"{match_rate:.0f}%",
-            'missing_top5': missing[:5]
+            'missing_phrases': phrase_missing[:5],
+            'missing_keywords': keyword_missing[:5]
         }
     
     def _score_skills_alignment(self, cv_text: str, job_skills: List[str]) -> Tuple[float, dict]:

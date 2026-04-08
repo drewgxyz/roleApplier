@@ -68,24 +68,33 @@ class ExperienceAdapter:
             
             # Extract the original experience data structure
             return {
+                "compare_the_market": {
+                    "original_skills": "Python, LangChain, LangGraph, Redis, PostgreSQL, AWS ECS, AWS EFS",
+                    "projects": {
+                        "bp1": "Led architecture of AI-powered product requirements pipeline, automatically converting PRDs into JIRA-ready engineering tickets using Python, LangGraph, LangChain, Redis, PostgreSQL, AWS ECS & EFS, reducing manual workload by 80%+",
+                        "bp2": "Developed internal AI-driven code review and SDLC automation platform used across 300+ engineers, increasing PR throughput by 75% and accelerating iteration cycles",
+                        "bp3": "Engineered distributed AI systems integrating caching (Redis), persistent state (PostgreSQL), and event-driven processing patterns, improving performance and cost efficiency of AI workloads",
+                        "bp4": "Led AI adoption across engineering teams through workshops, hackathons, and internal talks, enabling engineers to integrate AI into production workflows"
+                    }
+                },
                 "t_rowe_price": {
                     "original_skills": "Python, Java, AWS, RDS, Terraform",
                     "projects": {
                         "bp1": "Led architecture and development of production-grade Python data migration tool for syncing complex relational data across DEV/STAGE/PROD environments with rollback safety, referential integrity validation, and automated testing",
                         "bp2": "Redesigned legacy application with database performance issues, implementing scalable event-driven architecture on AWS using Lambda, SQS, Python, and Java, achieving 60% performance improvement",
-                        "bp3": "Architected disaster recovery strategies for legacy core infrastructure, rebuilding critical Java services in Python to enable seamless DR failover and establishing automated backup systems across US-East-2 region, ensuring high availability for internal finance services",
-                        "bp4": "Developed high-performance data loaders for internal directory system, integrating Active Directory data into RDS and OpenSearch to optimize search functionality and reduce response times"
+                        "bp3": "Architected disaster recovery strategies for legacy core infrastructure, rebuilding critical Java services in Python to enable seamless DR failover and establishing automated backup systems across US-East-2 region",
+                        "bp4": "Developed high-performance data loaders for internal directory system, integrating Active Directory data into RDS and OpenSearch to optimize search functionality"
                     }
                 },
                 "aws": {
-                    "original_skills": "Python, AWS, Java, Ruby, Linux System Administration",
+                    "original_skills": "Python, AWS, Linux System Administration",
                     "projects": {
                         "bp1": "Optimized Region Build deployment process, reducing required time by 40-55% across 15+ Service Catalog services and pipelines",
                         "bp2": "Deployed Service Catalog services across 5 newly launched AWS Regions (UAE, Melbourne, Spain, Zurich, Hyderabad) supporting global expansion",
                         "bp3": "Led security escalation response managing 2,400+ hosts, implementing automated security patching pipelines"
                     }
                 },
-                "bio": "Proven track record of delivering production-grade solutions that eliminate manual processes, improve system performance by 60%+, and influence organizational security strategy. Key expertise includes architecting Python-based migration tools for complex relational data, implementing scalable event-driven systems on AWS, and optimizing infrastructure deployments across global regions, as well as SQL expertise. Demonstrated ability to present technical findings to leadership and drive strategic decision-making in enterprise environments."
+                "bio": "Software Engineer with 3.5 years experience building AI-native automation systems, enterprise data pipelines, and cloud infrastructure. Currently leading AI product automation at Compare the Market, previously delivered production-grade migration tools at T. Rowe Price and global infrastructure deployments at AWS. Key expertise in Python, LangChain, LangGraph, AWS, and distributed systems."
             }
         except Exception as e:
             print(f"Could not extract CV data: {e}")

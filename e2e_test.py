@@ -196,6 +196,8 @@ def run_full_e2e_test():
     print("-" * 40)
     
     job_info = generator.parse_job_description(TEST_JOB)
+    # Store raw text for ATS phrase extraction
+    job_info['raw_text'] = TEST_JOB
     print(f"   Job Title: {job_info.get('job_title')}")
     print(f"   Company: {job_info.get('company_name')}")
     print(f"   Location: {job_info.get('location')}")
