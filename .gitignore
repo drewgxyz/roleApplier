@@ -79,3 +79,8 @@ resources/template.docx
 resources/baktemplate.docx
 resources/template copy.docx
 .gitignore
+
+resources/*
+resources
+resources/
+/resources

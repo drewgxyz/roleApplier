@@ -328,9 +328,7 @@ class BatchCVGenerator:
                 }},
                 "a": {{
                     "skills": "Comma-separated tech stack string using MATCHED SKILLS",
-                    "bp1": "First bullet point (max 300 chars)",
-                    "bp2": "Second bullet point (max 300 chars)",
-                    "bp3": "Third bullet point (max 300 chars)"
+                    "bp1": "Single concise impact-driven bullet combining infrastructure automation & global systems (max 300 chars)"
                 }}
             }},
             "cover_letter": "Complete cover letter text (2-3 paragraphs). Use name: {settings.get('user_name', 'Drew Gillies')}. No placeholders."
@@ -485,11 +483,9 @@ class BatchCVGenerator:
             't.bp2': cv_data.get('t', {}).get('bp2', ''),
             't.bp3': cv_data.get('t', {}).get('bp3', ''),
             't.bp4': cv_data.get('t', {}).get('bp4', ''),
-            # AWS
+            # AWS (single concise bullet for older experience)
             'a.skills': cv_data.get('a', {}).get('skills', ''),
             'a.bp1': cv_data.get('a', {}).get('bp1', ''),
-            'a.bp2': cv_data.get('a', {}).get('bp2', ''),
-            'a.bp3': cv_data.get('a', {}).get('bp3', ''),
         }
         
         # Split expertise for two columns
@@ -800,7 +796,7 @@ def llm_enhance_cv_content(cv_data: dict, job_info: dict, variant: str) -> dict:
         "expertise": ["skill1", "skill2", ...14 skills],
         "c": {{"skills": "LangChain, LangGraph, Python, AWS, Redis, PostgreSQL", "bp1": "...", "bp2": "...", "bp3": "...", "bp4": "..."}},
         "t": {{"skills": "comma-separated tech stack", "bp1": "...", "bp2": "...", "bp3": "...", "bp4": "..."}},
-        "a": {{"skills": "comma-separated tech stack", "bp1": "...", "bp2": "...", "bp3": "..."}}
+        "a": {{"skills": "comma-separated tech stack", "bp1": "Single concise impact-driven bullet"}}
     }}
     
     Return ONLY valid JSON.
