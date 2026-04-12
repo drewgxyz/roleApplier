@@ -260,7 +260,7 @@ class BatchCVGenerator:
         raw_job_text = job_info.get('raw_text', '')
         ats_phrases = []
         if raw_job_text:
-            from web_app import extract_ats_phrases
+            # Use the module-level function directly (no self-import needed)
             ats_phrases = extract_ats_phrases(raw_job_text)
         
         prompt = f"""
@@ -841,36 +841,57 @@ def is_url(text: str) -> bool:
 
 
 def parse_urls(input_text: str) -> list:
-    """Parse URLs from input text"""
+    """Parse URLs from input text (deduplicates automatically)"""
     urls = []
+    seen = set()
     lines = input_text.strip().split('\n')
     
     for line in lines:
         parts = line.split(',')
         for part in parts:
             url = part.strip()
-            if url and is_url(url):
+            if url and is_url(url) and url not in seen:
                 urls.append(url)
+                seen.add(url)
     
+    print(f"[DEBUG] parse_urls: Found {len(urls)} unique URLs from {len(lines)} lines")
     return urls
 
 
 def parse_job_descriptions(input_text: str) -> list:
-    """Parse multiple job descriptions from input text"""
-    separators = ['---', '===', '***', '###']
+    """Parse multiple job descriptions from input text (deduplicates automatically)
+    
+    Only splits on explicit separators (---, ===, etc.) NOT on blank lines.
+    Single job postings with formatting blank lines stay as one job.
+    """
+    # Minimum length for a valid job description (filters out fragments)
+    MIN_JOB_LENGTH = 500
+    
+    # Only use explicit long separators - unlikely to appear in normal text
+    separators = ['------------', '============', '************', '############']
     for sep in separators:
         if sep in input_text:
             parts = input_text.split(sep)
-            jobs = [part.strip() for part in parts if part.strip()]
+            # Filter out short fragments
+            jobs = [part.strip() for part in parts if part.strip() and len(part.strip()) >= MIN_JOB_LENGTH]
             if len(jobs) > 1:
+                # Deduplicate
+                seen = set()
+                unique_jobs = []
+                for job in jobs:
+                    job_hash = hash(job[:200])
+                    if job_hash not in seen:
+                        unique_jobs.append(job)
+                        seen.add(job_hash)
+                print(f"[DEBUG] parse_job_descriptions: Found {len(unique_jobs)} jobs using separator '{sep}'")
+                return unique_jobs
+            elif len(jobs) == 1:
+                print(f"[DEBUG] parse_job_descriptions: Single job after filtering (separator '{sep}' present but only 1 substantial section)")
                 return jobs
     
-    if '\n\n\n' in input_text:
-        parts = input_text.split('\n\n\n')
-        jobs = [part.strip() for part in parts if part.strip()]
-        if len(jobs) > 1:
-            return jobs
-    
+    # No explicit separators found - treat entire input as ONE job
+    # (Don't split on blank lines - they're just formatting within a single posting)
+    print(f"[DEBUG] parse_job_descriptions: Single job description ({len(input_text)} chars, no separators)")
     return [input_text.strip()] if input_text.strip() else []
 
 
@@ -1026,8 +1047,13 @@ def generate():
     jobs = []
     scrape_errors = []
     
+    print(f"\n[DEBUG] Input mode: {input_mode}")
+    print(f"[DEBUG] Input text length: {len(input_text)} chars")
+    print(f"[DEBUG] Input preview: {input_text[:200]}...")
+    
     if input_mode == 'urls':
         urls = parse_urls(input_text)
+        print(f"[DEBUG] Parsed {len(urls)} URLs: {urls}")
         
         if not urls:
             return jsonify({
@@ -1037,13 +1063,21 @@ def generate():
         
         for url in urls:
             try:
+                print(f"[DEBUG] Scraping URL: {url}")
                 job_text = scrape_job_url(url)
+                print(f"[DEBUG] Scraped {len(job_text)} chars from {url}")
                 jobs.append({'text': job_text, 'source_url': url})
             except Exception as e:
+                print(f"[DEBUG] Scrape error for {url}: {e}")
                 scrape_errors.append({'url': url, 'error': str(e)})
     else:
         parsed = parse_job_descriptions(input_text)
+        print(f"[DEBUG] Parsed {len(parsed)} job descriptions from text input")
+        for idx, job in enumerate(parsed):
+            print(f"[DEBUG] Job {idx+1} length: {len(job)} chars, preview: {job[:80]}...")
         jobs = [{'text': job, 'source_url': None} for job in parsed]
+    
+    print(f"[DEBUG] Total jobs to process: {len(jobs)}")
     
     if not jobs:
         error_msg = 'Could not parse any job descriptions'
@@ -1066,9 +1100,19 @@ def generate():
     output_dir = Path(f"outputs/{date_str}_{time_str}")
     output_dir.mkdir(parents=True, exist_ok=True)
     
+    print(f"\n{'='*60}")
+    print(f"STARTING GENERATION: {len(jobs)} job(s) to process")
+    print(f"Variants enabled: {generate_variants}")
+    print(f"Variants to generate: {list(CV_VARIANTS.keys()) if generate_variants else ['professional']}")
+    print(f"{'='*60}\n")
+    
     for i, job_data in enumerate(jobs):
+        print(f"\n>>> PROCESSING JOB {i+1} of {len(jobs)} <<<")
         job_text = job_data['text']
         source_url = job_data.get('source_url')
+        print(f"    Source URL: {source_url}")
+        print(f"    Job text length: {len(job_text)} chars")
+        print(f"    Job text preview: {job_text[:100]}...")
         
         try:
             # Parse job description
@@ -1093,9 +1137,10 @@ def generate():
             best_variant = None
             best_ats_score = 0
             
-            for variant_key in variants_to_generate:
+            print(f"\n    --- Generating {len(variants_to_generate)} variants: {variants_to_generate} ---")
+            for variant_idx, variant_key in enumerate(variants_to_generate):
                 try:
-                    print(f"  Generating {variant_key} variant...")
+                    print(f"\n  [{variant_idx+1}/{len(variants_to_generate)}] Generating {variant_key} variant...")
                     # Generate CV for this variant
                     generated = generator.generate_cv_and_cover_letter(job_info, variant_key)
                     cv_data = generated.get('cv', {})
@@ -1143,6 +1188,7 @@ def generate():
                     missing_phrases = kw_details.get('missing_phrases', [])[:5]
                     missing_keywords = kw_details.get('missing_keywords', [])[:3]
                     
+                    print(f"    ✓ {variant_key} complete - ATS score: {ats_result['total_score']:.1f}")
                     variant_results.append({
                         'variant': variant_key,
                         'variant_name': variant_name,
@@ -1167,7 +1213,11 @@ def generate():
                         'error': str(e)
                     })
             
+            print(f"\n    --- All {len(variant_results)} variants complete for job {i+1} ---")
+            print(f"    Best variant: {best_variant} with ATS score: {best_ats_score:.1f}")
+            
             # Generate cover letter (same for all variants)
+            print(f"    Generating cover letter...")
             cover_letter_path = job_folder / f"Cover_Letter_{company_safe}.pdf"
             # Use the best variant's cover letter
             best_generated = generator.generate_cv_and_cover_letter(job_info, best_variant or 'professional')
@@ -1176,6 +1226,8 @@ def generate():
                 job_info,
                 str(cover_letter_path)
             )
+            print(f"    ✓ Cover letter saved to {cover_letter_path}")
+            print(f"\n>>> JOB {i+1} COMPLETE <<<")
             
             # Save original job description
             job_desc_path = job_folder / "Original_Job_Description.txt"
@@ -1217,6 +1269,10 @@ def generate():
             })
             
         except Exception as e:
+            import traceback
+            print(f"\n!!! EXCEPTION processing job {i+1} !!!")
+            print(f"Error: {e}")
+            traceback.print_exc()
             results.append({
                 'success': False,
                 'error': str(e),
@@ -1224,7 +1280,15 @@ def generate():
                 'job_text_preview': job_text[:100] + '...' if len(job_text) > 100 else job_text
             })
     
+    print(f"\n{'='*60}")
+    print(f"ALL JOBS COMPLETE!")
+    print(f"  Processed: {len(jobs)} job(s)")
+    print(f"  Successful: {sum(1 for r in results if r.get('success'))}")
+    print(f"  Failed: {sum(1 for r in results if not r.get('success'))}")
+    print(f"{'='*60}\n")
+    
     # Create zip file of all outputs
+    print("Creating zip file...")
     zip_path = output_dir / "all_applications.zip"
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for result in results:
@@ -1232,6 +1296,9 @@ def generate():
                 folder = Path(result['folder'])
                 for file in folder.iterdir():
                     zipf.write(file, f"{folder.name}/{file.name}")
+    
+    print(f"✓ Zip file created: {zip_path}")
+    print("Returning JSON response to client...\n")
     
     return jsonify({
         'success': True,

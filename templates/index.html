@@ -53,7 +53,7 @@
                     </div>
                     <div>
                         <h2 class="text-xl font-semibold text-gray-800" id="inputTitle">Paste Job Descriptions</h2>
-                        <p class="text-gray-500 text-sm" id="inputSubtitle">Separate multiple jobs with --- or triple newlines</p>
+                        <p class="text-gray-500 text-sm" id="inputSubtitle">Separate multiple jobs with ------------</p>
                     </div>
                 </div>
                 
@@ -82,31 +82,28 @@
                     class="w-full h-80 p-4 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all resize-none font-mono text-sm"
                     placeholder="Paste your job descriptions here...
 
-Example format:
----
+Example format for MULTIPLE jobs (separate with ------------):
+------------
 Senior Python Developer - TechCorp
 Location: London, UK
 Requirements:
 - 3+ years Python experience
 - AWS experience
-- SQL and database optimization
 ...
-
----
+------------
 Software Engineer - FinanceApp
 Location: Remote
 Requirements:
 - Python/Java experience
-- Cloud infrastructure
 ...
----"
+------------"
                 ></textarea>
             </div>
 
             <div class="flex items-center justify-between">
                 <div class="text-sm text-gray-500" id="inputTip">
                     <i class="fas fa-info-circle mr-1"></i>
-                    Tip: Use <code class="bg-gray-100 px-2 py-1 rounded">---</code> to separate multiple job descriptions
+                    Tip: Use <code class="bg-gray-100 px-2 py-1 rounded">------------</code> to separate multiple job descriptions
                 </div>
                 <button 
                     id="generateBtn"
@@ -218,28 +215,25 @@ https://jobs.lever.co/company/position-id`;
                 textBtn.className = 'px-4 py-2 rounded-lg text-sm font-medium transition-all bg-white shadow text-purple-600';
                 inputIcon.className = 'fas fa-paste text-purple-600';
                 inputTitle.textContent = 'Paste Job Descriptions';
-                inputSubtitle.textContent = 'Separate multiple jobs with --- or triple newlines';
-                inputTip.innerHTML = '<i class="fas fa-info-circle mr-1"></i> Tip: Use <code class="bg-gray-100 px-2 py-1 rounded">---</code> to separate multiple job descriptions';
+                inputSubtitle.textContent = 'Separate multiple jobs with ------------';
+                inputTip.innerHTML = '<i class="fas fa-info-circle mr-1"></i> Tip: Use <code class="bg-gray-100 px-2 py-1 rounded">------------</code> to separate multiple job descriptions';
                 textarea.placeholder = `Paste your job descriptions here...
 
-Example format:
----
+Example format for MULTIPLE jobs (separate with ------------):
+------------
 Senior Python Developer - TechCorp
 Location: London, UK
 Requirements:
 - 3+ years Python experience
 - AWS experience
-- SQL and database optimization
 ...
-
----
+------------
 Software Engineer - FinanceApp
 Location: Remote
 Requirements:
 - Python/Java experience
-- Cloud infrastructure
 ...
----`;
+------------`;
             }
         }
 
