@@ -318,6 +318,12 @@ class BatchCVGenerator:
         6. NEVER mention any BLACKLISTED SKILLS
         7. For ATS: Use exact keyword matches from job description where they match our approved skills
         8. Cover letter: 2-3 paragraphs, professional, mention 2-3 relevant matched skills
+        9. PLACEHOLDER SUBSTITUTION for Compare the Market bullets - replace with MATCHED SKILLS from job:
+           - {{{{ai_framework}}}} -> LangGraph, LangChain, or similar from MATCHED SKILLS (default: LangGraph)
+           - {{{{container_orchestration}}}} -> Kubernetes, Docker, ECS, or similar (default: Kubernetes)
+           - {{{{database}}}} -> PostgreSQL, RDS, MySQL, or similar (default: AWS RDS)
+           - {{{{cache}}}} -> Redis, Memcached, or similar (default: Redis)
+           - {{{{ai_tools}}}} -> relevant AI/ML tools from MATCHED SKILLS (default: Python, Claude API)
 
         Return ONLY a JSON object with this exact structure:
         {{
@@ -325,11 +331,11 @@ class BatchCVGenerator:
                 "bio": "Updated bio paragraph - ATS optimized with keywords (max 250 chars)",
                 "expertise": ["List of exactly {expertise_count} skills from MATCHED SKILLS"],
                 "c": {{
-                    "skills": "Comma-separated tech stack for Compare the Market (AI/ML focus): LangChain, LangGraph, Python, AWS, Redis, PostgreSQL",
-                    "bp1": "AI automation bullet - PRD to JIRA project with metrics (max 300 chars)",
-                    "bp2": "Agent orchestration bullet with tech and metrics (max 300 chars)",
-                    "bp3": "SDLC automation bullet - code review tool with metrics (max 300 chars)",
-                    "bp4": "Mentoring/workshops bullet (max 300 chars)"
+                    "skills": "Comma-separated tech stack using MATCHED SKILLS (prioritize: LangGraph, LangChain, Python, AWS, Kubernetes, Redis, PostgreSQL)",
+                    "bp1": "Led architecture of cross-team AI automation converting PRDs into JIRA-ready tickets using {{ai_framework}}, {{container_orchestration}}, and {{database}} - reducing planning time from 2 hours to 15 minutes. Adopted by 6+ product managers including Head of Product, with 50+ PRDs processed.",
+                    "bp2": "Designed and shipped 7-agent {{ai_framework}} pipeline with {{cache}}, including production-ready GitLab knowledge graph on AWS EFS with automated mass indexing - enabling end-to-end PRD processing with intelligent task routing.",
+                    "bp3": "Deployed company-wide AI code review system processing 34,000+ MRs at 95% adoption across 400+ engineers. Auto-approves quality MRs, performs security checks using {{ai_tools}}, and leverages knowledge graph for codebase-aware suggestions.",
+                    "bp4": "Mentored engineers on AI-native development through 5 workshops and 2 hackathons, delivering knowledge-sharing sessions to 100+ engineers. Supported teams shipping production features with AI-powered backends."
                 }},
                 "t": {{
                     "skills": "Comma-separated tech stack string using MATCHED SKILLS",
