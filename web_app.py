@@ -71,6 +71,18 @@ TEMPLATE_PATH = 'resources/template.docx'
 CLAUDE_MODEL_QUALITY = "claude-sonnet-4-6"  # For quality-critical tasks
 CLAUDE_MODEL_FAST = "claude-3-haiku-20240307"  # For simpler tasks (10x cheaper)
 
+# ===== TESTING FLAGS (set in .env) =====
+def _env_bool(key: str, default: bool = True) -> bool:
+    """Parse boolean from env var (true/false/1/0)"""
+    val = os.getenv(key, str(default)).lower()
+    return val in ('true', '1', 'yes')
+
+ENABLE_PROFESSIONAL = _env_bool('ENABLE_PROFESSIONAL', False)
+ENABLE_TECHNICAL = _env_bool('ENABLE_TECHNICAL', False)
+ENABLE_IMPACT = _env_bool('ENABLE_IMPACT', True)
+ENABLE_COVER_LETTER = _env_bool('ENABLE_COVER_LETTER', False)
+ENABLE_ENHANCEMENT = _env_bool('ENABLE_ENHANCEMENT', True)
+
 
 class BatchCVGenerator:
     """Handles batch generation of CVs and cover letters using Claude 3.5 Sonnet"""
@@ -1127,8 +1139,21 @@ def generate():
             user_name = settings.get('user_name', 'Drew_Gillies').replace(' ', '_')
             job_skills = job_info.get('required_skills', []) + job_info.get('preferred_skills', [])
             
-            # Generate variants
-            variants_to_generate = list(CV_VARIANTS.keys()) if generate_variants else ['professional']
+            # Generate variants - filter by feature flags
+            if generate_variants:
+                variants_to_generate = []
+                if ENABLE_PROFESSIONAL:
+                    variants_to_generate.append('professional')
+                if ENABLE_TECHNICAL:
+                    variants_to_generate.append('technical')
+                if ENABLE_IMPACT:
+                    variants_to_generate.append('impact')
+                # Fallback if all disabled
+                if not variants_to_generate:
+                    variants_to_generate = ['impact']
+                    print("    ⚠ All variants disabled in .env, defaulting to impact")
+            else:
+                variants_to_generate = ['professional']
             variant_results = []
             best_variant = None
             best_ats_score = 0
@@ -1142,8 +1167,11 @@ def generate():
                     cv_data = generated.get('cv', {})
                     print(f"    CV data keys: {list(cv_data.keys())}")
                     
-                    # Enhance CV content with additional LLM call
-                    cv_data = llm_enhance_cv_content(cv_data, job_info, variant_key)
+                    # Enhance CV content with additional LLM call (if enabled)
+                    if ENABLE_ENHANCEMENT:
+                        cv_data = llm_enhance_cv_content(cv_data, job_info, variant_key)
+                    else:
+                        print(f"    ⏭ Skipping enhancement (disabled in .env)")
                     
                     # Build CV text for ATS scoring
                     cv_text = f"""
@@ -1212,17 +1240,21 @@ def generate():
             print(f"\n    --- All {len(variant_results)} variants complete for job {i+1} ---")
             print(f"    Best variant: {best_variant} with ATS score: {best_ats_score:.1f}")
             
-            # Generate cover letter (same for all variants)
-            print(f"    Generating cover letter...")
-            cover_letter_path = job_folder / f"Cover_Letter_{company_safe}.pdf"
-            # Use the best variant's cover letter
-            best_generated = generator.generate_cv_and_cover_letter(job_info, best_variant or 'professional')
-            generator.create_cover_letter_pdf(
-                best_generated.get('cover_letter', ''),
-                job_info,
-                str(cover_letter_path)
-            )
-            print(f"    ✓ Cover letter saved to {cover_letter_path}")
+            # Generate cover letter (if enabled)
+            cover_letter_path = None
+            if ENABLE_COVER_LETTER:
+                print(f"    Generating cover letter...")
+                cover_letter_path = job_folder / f"Cover_Letter_{company_safe}.pdf"
+                # Use the best variant's cover letter
+                best_generated = generator.generate_cv_and_cover_letter(job_info, best_variant or 'professional')
+                generator.create_cover_letter_pdf(
+                    best_generated.get('cover_letter', ''),
+                    job_info,
+                    str(cover_letter_path)
+                )
+                print(f"    ✓ Cover letter saved to {cover_letter_path}")
+            else:
+                print(f"    ⏭ Skipping cover letter (disabled in .env)")
             print(f"\n>>> JOB {i+1} COMPLETE <<<")
             
             # Save original job description
@@ -1260,7 +1292,7 @@ def generate():
                 'variants': variant_results,
                 'best_variant': best_variant,
                 'best_ats_score': best_ats_score,
-                'cover_letter_path': str(cover_letter_path),
+                'cover_letter_path': str(cover_letter_path) if cover_letter_path else None,
                 'folder': str(job_folder)
             })
             
@@ -1323,14 +1355,23 @@ if __name__ == '__main__':
     
     print("🚀 Starting CV Generator Web App")
     print("=" * 40)
-    # print(f"📊 Using Claude Model: {CLAUDE_MODEL}")
-    print("   (Best for ATS-friendly CVs)")
+    
+    # Show testing flags
+    print("\n� Testing Flags (.env):")
+    print(f"   ENABLE_PROFESSIONAL: {ENABLE_PROFESSIONAL}")
+    print(f"   ENABLE_TECHNICAL:    {ENABLE_TECHNICAL}")
+    print(f"   ENABLE_IMPACT:       {ENABLE_IMPACT}")
+    print(f"   ENABLE_COVER_LETTER: {ENABLE_COVER_LETTER}")
+    print(f"   ENABLE_ENHANCEMENT:  {ENABLE_ENHANCEMENT}")
+    
+    enabled_variants = [v for v, e in [('professional', ENABLE_PROFESSIONAL), ('technical', ENABLE_TECHNICAL), ('impact', ENABLE_IMPACT)] if e]
+    print(f"\n   → Will generate: {enabled_variants or ['impact (fallback)']}")
     
     if not ANTHROPIC_API_KEY or ANTHROPIC_API_KEY == 'your_anthropic_api_key_here':
-        print("⚠️  Warning: ANTHROPIC_API_KEY not set in .env file")
+        print("\n⚠️  Warning: ANTHROPIC_API_KEY not set in .env file")
         print("   Create a .env file with: ANTHROPIC_API_KEY=your_key_here")
     else:
-        print("✓ Anthropic API key loaded")
+        print("\n✓ Anthropic API key loaded")
     
     print("\n📝 Open http://localhost:5001 in your browser")
     print("⚙️  Settings page: http://localhost:5001/settings")
