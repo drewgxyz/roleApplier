@@ -584,7 +584,8 @@ class BatchCVGenerator:
                 else:
                     value_text = str(value)
             elif isinstance(value, list):
-                value_text = ' • '.join(value)
+                # Each skill on new line with bullet
+                value_text = '\n• '.join(value)
                 value_text = '• ' + value_text if value else ''
             else:
                 value_text = str(value).replace('\n', ' ').strip()
@@ -843,6 +844,94 @@ def llm_enhance_cv_content(cv_data: dict, job_info: dict, variant: str) -> dict:
     except Exception as e:
         print(f"    ⚠ Enhancement failed: {e}, using original")
         return cv_data
+
+
+def llm_select_best_variant(variant_results: list, job_text: str, job_info: dict) -> dict:
+    """
+    Use LLM to analyze all CV variants and select the best one for the job.
+    Returns dict with recommended variant and reasoning.
+    """
+    if not variant_results or len(variant_results) < 2:
+        # Only one variant, no need to compare
+        return {
+            'recommended': variant_results[0]['variant'] if variant_results else 'professional',
+            'reasoning': 'Only one variant generated.',
+            'confidence': 'high'
+        }
+    
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    
+    # Build variant summaries for comparison
+    variants_text = ""
+    for vr in variant_results:
+        if vr.get('error'):
+            continue
+        variant_name = vr.get('variant', 'unknown')
+        ats_score = vr.get('ats_score', 0)
+        cv_text = vr.get('cv_text_preview', '')[:1500]  # Limit size
+        variants_text += f"""
+--- {variant_name.upper()} VARIANT (ATS Score: {ats_score:.1f}) ---
+{cv_text}
+"""
+    
+    prompt = f"""You are an expert recruiter and CV analyst. Compare these CV variants for the job below and recommend the BEST one.
+
+JOB DESCRIPTION:
+{job_text[:2000]}
+
+JOB REQUIREMENTS:
+- Title: {job_info.get('job_title', 'Unknown')}
+- Company: {job_info.get('company_name', 'Unknown')}
+- Required Skills: {', '.join(job_info.get('required_skills', [])[:10])}
+
+CV VARIANTS TO COMPARE:
+{variants_text}
+
+Analyze which variant best matches:
+1. The job's tone and culture (startup vs corporate)
+2. Required skills and keywords
+3. Impact/metrics presentation style
+4. Overall fit for this specific role
+
+Return ONLY valid JSON:
+{{
+    "recommended": "professional" or "technical" or "impact",
+    "reasoning": "2-3 sentence explanation of why this variant is best for THIS job",
+    "confidence": "high" or "medium" or "low"
+}}
+"""
+    
+    try:
+        response = client.messages.create(
+            model=CLAUDE_MODEL_FAST,
+            max_tokens=500,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        response_text = response.content[0].text
+        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        
+        if json_match:
+            result = json.loads(json_match.group())
+            print(f"    ✓ LLM recommends: {result.get('recommended')} ({result.get('confidence')} confidence)")
+            return result
+        
+        # Fallback to highest ATS score
+        best = max(variant_results, key=lambda x: x.get('ats_score', 0))
+        return {
+            'recommended': best.get('variant', 'professional'),
+            'reasoning': 'Based on highest ATS score.',
+            'confidence': 'medium'
+        }
+        
+    except Exception as e:
+        print(f"    ⚠ LLM selection failed: {e}, using ATS score")
+        best = max(variant_results, key=lambda x: x.get('ats_score', 0))
+        return {
+            'recommended': best.get('variant', 'professional'),
+            'reasoning': f'Fallback to highest ATS score due to error: {str(e)[:50]}',
+            'confidence': 'low'
+        }
 
 
 def is_url(text: str) -> bool:
@@ -1232,6 +1321,7 @@ def generate():
                         'missing_keywords': missing_keywords,
                         'page_valid': generated.get('page_validation', {}).get('is_valid', True),
                         'page_estimate': generated.get('page_validation', {}).get('estimated_pages', 1.0),
+                        'cv_text_preview': cv_text,  # For LLM comparison
                     })
                     
                 except Exception as e:
@@ -1244,7 +1334,26 @@ def generate():
                     })
             
             print(f"\n    --- All {len(variant_results)} variants complete for job {i+1} ---")
-            print(f"    Best variant: {best_variant} with ATS score: {best_ats_score:.1f}")
+            print(f"    Best variant (ATS): {best_variant} with score: {best_ats_score:.1f}")
+            
+            # LLM selection of best variant (if multiple variants generated)
+            llm_recommendation = None
+            successful_variants = [v for v in variant_results if not v.get('error')]
+            if len(successful_variants) >= 2:
+                print(f"    Asking LLM to select best variant...")
+                llm_recommendation = llm_select_best_variant(successful_variants, job_text, job_info)
+                # Mark the recommended variant
+                for vr in variant_results:
+                    vr['llm_recommended'] = (vr.get('variant') == llm_recommendation.get('recommended'))
+                    if vr['llm_recommended']:
+                        vr['llm_reasoning'] = llm_recommendation.get('reasoning', '')
+                        vr['llm_confidence'] = llm_recommendation.get('confidence', 'medium')
+            else:
+                # Only one variant, mark it as recommended
+                for vr in variant_results:
+                    vr['llm_recommended'] = True
+                    vr['llm_reasoning'] = 'Only variant generated.'
+                    vr['llm_confidence'] = 'high'
             
             # Generate cover letter (if enabled)
             cover_letter_path = None

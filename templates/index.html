@@ -305,12 +305,35 @@ Requirements:
                     // Build variants HTML
                     let variantsHtml = '';
                     if (result.variants && result.variants.length > 0) {
-                        variantsHtml = '<div class="mt-4 pt-4 border-t border-gray-100"><p class="text-xs text-gray-500 mb-2">CV Variants (ATS Scored):</p><div class="grid grid-cols-3 gap-2">';
+                        // Find LLM recommended variant
+                        const llmRecommended = result.variants.find(v => v.llm_recommended);
+                        const recommendationHtml = llmRecommended && llmRecommended.llm_reasoning 
+                            ? `<div class="mb-3 p-2 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-lg">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <i class="fas fa-robot text-emerald-600"></i>
+                                    <span class="text-xs font-semibold text-emerald-700">AI Recommends: ${llmRecommended.variant_name}</span>
+                                    <span class="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">${llmRecommended.llm_confidence || 'medium'} confidence</span>
+                                </div>
+                                <p class="text-xs text-emerald-600">${llmRecommended.llm_reasoning}</p>
+                               </div>`
+                            : '';
+                        
+                        variantsHtml = `<div class="mt-4 pt-4 border-t border-gray-100">
+                            <p class="text-xs text-gray-500 mb-2">CV Variants (ATS Scored):</p>
+                            ${recommendationHtml}
+                            <div class="grid grid-cols-3 gap-2">`;
+                        
                         result.variants.forEach(v => {
                             if (!v.error) {
-                                const isBest = v.variant === result.best_variant;
+                                const isLLMRecommended = v.llm_recommended;
+                                const isBestATS = v.variant === result.best_variant;
                                 const scoreColor = v.ats_score >= 80 ? 'text-green-600' : v.ats_score >= 60 ? 'text-yellow-600' : 'text-red-600';
                                 const bgColor = v.ats_score >= 80 ? 'bg-green-50' : v.ats_score >= 60 ? 'bg-yellow-50' : 'bg-red-50';
+                                
+                                // LLM recommended gets special styling
+                                const cardStyle = isLLMRecommended 
+                                    ? 'bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-400 shadow-md' 
+                                    : (isBestATS ? 'bg-purple-50 border border-purple-200' : bgColor);
                                 
                                 // Show missing keywords if score < 80
                                 let missingHtml = '';
@@ -319,10 +342,10 @@ Requirements:
                                 }
                                 
                                 variantsHtml += `
-                                    <div class="p-2 rounded-lg ${isBest ? 'bg-purple-50 border border-purple-200' : bgColor}">
+                                    <div class="p-2 rounded-lg ${cardStyle}">
                                         <div class="flex items-center justify-between mb-1">
-                                            <span class="text-xs font-medium ${isBest ? 'text-purple-700' : 'text-gray-700'}">${v.variant_name}</span>
-                                            ${isBest ? '<span class="text-xs bg-purple-600 text-white px-1 rounded">Best</span>' : ''}
+                                            <span class="text-xs font-medium ${isLLMRecommended ? 'text-emerald-700' : (isBestATS ? 'text-purple-700' : 'text-gray-700')}">${v.variant_name}</span>
+                                            ${isLLMRecommended ? `<span class="text-xs bg-emerald-500 text-white px-1.5 py-0.5 rounded flex items-center gap-1 cursor-help relative group"><i class="fas fa-star text-yellow-300"></i> Best<div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-normal w-64 z-50 pointer-events-none shadow-lg"><strong>Best because:</strong> ${v.llm_reasoning || 'Best match for this job.'}</div></span>` : (isBestATS ? '<span class="text-xs bg-purple-600 text-white px-1 rounded">Top ATS</span>' : '')}
                                         </div>
                                         <div class="flex items-center gap-1">
                                             <span class="text-sm font-bold ${scoreColor}">${v.ats_score.toFixed(0)}</span>
