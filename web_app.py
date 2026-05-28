@@ -69,7 +69,7 @@ TEMPLATE_PATH = 'resources/template.docx'
 # Sonnet 4: Quality writing tasks (CV generation, cover letters, job parsing)
 # Haiku 3.5: Simple extraction/cleanup tasks (URL scraping, enhancement passes)
 CLAUDE_MODEL_QUALITY = "claude-sonnet-4-6"  # For quality-critical tasks
-CLAUDE_MODEL_FAST = "claude-3-haiku-20240307"  # For simpler tasks (10x cheaper)
+CLAUDE_MODEL_FAST = "claude-haiku-4-5"  # For simpler tasks (10x cheaper)
 
 # ===== TESTING FLAGS (set in .env) =====
 def _env_bool(key: str, default: bool = True) -> bool:
@@ -280,12 +280,12 @@ class BatchCVGenerator:
         
         WRITING STYLE: {tone_instruction}
         
-        CRITICAL ATS REQUIREMENTS (ATS systems do EXACT string matching):
-        1. You MUST include these EXACT phrases verbatim in your bullet points: {', '.join(ats_phrases[:10]) if ats_phrases else ', '.join(job_info.get('required_skills', [])[:10])}
-        2. Every bullet point MUST contain at least one number/metric (%, time, money, count)
+        ATS REQUIREMENTS (be ATS-friendly without sacrificing readability):
+        1. Include these phrases somewhere across the CV (use proper capitalisation - never lowercase tech terms): {', '.join(ats_phrases[:10]) if ats_phrases else ', '.join(job_info.get('required_skills', [])[:10])}
+        2. Most bullets should include a quantified outcome (%, time, count) BUT architectural/leadership bullets may omit numbers when they capture clear scope/impact (mirror the model CV style)
         3. Use standard section headers only
-        4. No special characters (use - not •)
-        5. Mirror the exact language from the job description
+        4. ALWAYS use proper capitalisation: Docker (not docker), Kubernetes (not kubernetes), CI/CD (not ci/cd), AWS, FastAPI, PostgreSQL, GitHub Actions, AI, LLM, etc.
+        5. Mirror the exact language from the job description where natural
 
         TARGET JOB:
         - Position: {sanitized_title} at {job_info.get('company_name', 'Unknown Company')}
@@ -310,32 +310,43 @@ class BatchCVGenerator:
         - Location: {settings.get('user_location', 'London, UK')}
 
         CRITICAL INSTRUCTIONS:
-        1. CV must fit on exactly 1 page - bio max 250 chars, bullet points max 300 chars each
-        2. Bio: 2-3 sentences. NEVER use "Senior" or inflated titles. Use: Software Engineer, Software Developer, Backend Engineer
-        3. Bullet points: 40-60 words each, include specific technologies from MATCHED SKILLS and quantified metrics (%, numbers, time saved)
-        4. Expertise: Exactly {expertise_count} skills from MATCHED SKILLS list, programming languages first
-        5. Tech stacks: Use technologies from MATCHED SKILLS that appear in the job description
+        1. CV must fit on exactly 1 page - bio HARD LIMIT 290 chars (count carefully), bullets 25-40 words each (model CVs average 28-32 words per bullet)
+        2. Bio: 2-3 sentences. Sentence 1 = role + years + 2-3 domain areas (e.g., "Software Engineer with experience building Python-based backend services, enterprise platform tooling, and AI-driven automation across financial services and cloud infrastructure environments."). Sentence 2 = "Strong background in <3-5 CONCRETE TECHNOLOGIES from MATCHED SKILLS>, <one capability area>". NEVER use "Senior", "leader", "lead", or inflated titles. NEVER fill the bio with soft-skill JD phrases like "product ownership mindset", "adaptability", "growth mindset", "iterative development and prototyping" - those belong in the cover letter, not the CV bio.
+        3. Bullets: short, crisp, action-verb led. Pattern: [Verb] + concrete artefact + 1-3 specific technologies + outcome. Examples of action verbs the model CVs use: Led architecture of, Designed and shipped, Architected, Redesigned, Developed, Optimised, Rebuilt, Deployed, Mentored.
+        4. Expertise: Exactly {expertise_count} CONCRETE TECHNOLOGIES drawn ONLY from MY APPROVED SKILLS / MATCHED SKILLS. Programming languages first. Group related items where natural (e.g. "Docker & Kubernetes", "AWS (ECS, Lambda, RDS, S3, SQS)"). DO NOT use soft skills, methodologies or JD phrasings like "Software Engineering", "Modern OO language proficiency", "Architectural design", "Iterative/Agile development", "Prototyping", "Cross-functional collaboration", "Scalable design patterns", "Product Development". Those belong in the bio/bullets, not expertise.
+        5. Tech stacks: 8-11 CONCRETE TECHNOLOGIES (no soft skills, methodologies or process terms) from MATCHED SKILLS that appear in the job description, comma-separated. Always proper-cased.
         6. NEVER mention any BLACKLISTED SKILLS
-        7. For ATS: Use exact keyword matches from job description where they match our approved skills
-        8. Cover letter: 2-3 paragraphs, professional, mention 2-3 relevant matched skills
-        9. PLACEHOLDER SUBSTITUTION for Compare the Market bullets - replace with MATCHED SKILLS from job:
-           - {{{{ai_framework}}}} -> LangGraph, LangChain, or similar from MATCHED SKILLS (default: LangGraph)
-           - {{{{container_orchestration}}}} -> Kubernetes, Docker, ECS, or similar (default: Kubernetes)
-           - {{{{database}}}} -> PostgreSQL, RDS, MySQL, or similar (default: AWS RDS)
-           - {{{{cache}}}} -> Redis, Memcached, or similar (default: Redis)
-           - {{{{ai_tools}}}} -> relevant AI/ML tools from MATCHED SKILLS (default: Python, Claude API)
+        6a. NEVER claim languages/frameworks the candidate does not actually have. Only use technologies from MY APPROVED SKILLS. If the JD requires C#/.NET, Go, etc. and they are not in MY APPROVED SKILLS, DO NOT add them to the bio or expertise - just emphasise transferable strengths instead.
+        7. STRICTLY AVOID filler phrases that don't add concrete information: "scalable design patterns", "distributed systems architecture", "supporting payment systems knowledge gained", "within scalable design patterns", "across enterprise financial services workflows". Be concrete instead.
+        8. NEVER pad verbs: write "Led architecture of..." not "Led software engineering architecture of...". Write "Architected..." not "Architected end-to-end design and delivery of...".
+        9. Cover letter: 2-3 paragraphs, professional, mention 2-3 relevant matched skills.
+
+        STYLE ANCHOR - bullets in your output should sound like these (these are the model exemplars - mirror their crispness, specificity and verb choice):
+          * "Led architecture of cross-team AI automation converting 50+ Product Requirement Documents (PRDs) into JIRA-ready tickets using LangGraph and FastAPI, reducing planning time from 2 hours to 15 minutes - adopted by 6+ product managers including Head of Product."
+          * "Designed and shipped a 7-agent LangGraph-based AI pipeline with Redis and parallel Python workers, enabling end-to-end PRD processing with automated task routing and production-ready GitLab knowledge graph indexing on AWS EFS."
+          * "Redesigned legacy application with 60% performance improvement and eliminated 3 recurring production incidents per month by implementing scalable event-driven architecture on AWS using SQS and RDS-backed services."
+          * "Architected disaster recovery strategy for legacy core infrastructure, rebuilding 4 critical Python services using FastAPI to enable seamless DR failover - reducing potential downtime from 8 hours to under 30 minutes with automated PostgreSQL backup systems."
+          * "Optimised AWS region build and Service Catalog deployment pipelines, reducing provisioning time by 40-55% across 15+ services while implementing automated validation and security controls to ensure reliable, standardised infrastructure across multiple global regions."
+          * "Mentored 100+ engineers on AI-native development and large language models through 5 workshops and 2 hackathons, supporting teams shipping production features with AI-powered Python backends."
+
+        TECH SUBSTITUTION for Compare the Market bullets - pick concrete technologies from MATCHED SKILLS, never leave placeholders in output:
+           - AI framework -> LangGraph, LangChain (default: LangGraph)
+           - Containerisation/orchestration -> Docker, Kubernetes, AWS ECS (default: Kubernetes)
+           - Database -> PostgreSQL, AWS RDS (default: PostgreSQL)
+           - Cache -> Redis (default: Redis)
+           - AI tools -> Python, Claude API, LLM APIs (default: Python and LLM APIs)
 
         Return ONLY a JSON object with this exact structure:
         {{
             "cv": {{
-                "bio": "Updated bio paragraph - ATS optimized with keywords (max 250 chars)",
+                "bio": "Updated bio paragraph - 2-3 sentences, max 290 chars, ATS keywords woven in naturally",
                 "expertise": ["List of exactly {expertise_count} skills from MATCHED SKILLS"],
                 "c": {{
-                    "skills": "Comma-separated tech stack using MATCHED SKILLS (prioritize: LangGraph, LangChain, Python, AWS, Kubernetes, Redis, PostgreSQL)",
-                    "bp1": "Led architecture of cross-team AI automation converting PRDs into JIRA-ready tickets using {{ai_framework}}, {{container_orchestration}}, and {{database}} - reducing planning time from 2 hours to 15 minutes. Adopted by 6+ product managers including Head of Product, with 50+ PRDs processed.",
-                    "bp2": "Designed and shipped 7-agent {{ai_framework}} pipeline with {{cache}}, including production-ready GitLab knowledge graph on AWS EFS with automated mass indexing - enabling end-to-end PRD processing with intelligent task routing.",
-                    "bp3": "Deployed company-wide AI code review system processing 34,000+ MRs at 95% adoption across 400+ engineers. Auto-approves quality MRs, performs security checks using {{ai_tools}}, and leverages knowledge graph for codebase-aware suggestions.",
-                    "bp4": "Mentored engineers on AI-native development through 5 workshops and 2 hackathons, delivering knowledge-sharing sessions to 100+ engineers. Supported teams shipping production features with AI-powered backends."
+                    "skills": "Python, LangGraph, LangChain, AWS, Docker, FastAPI, PostgreSQL, Redis, JSON, APIs",
+                    "bp1": "<25-40 word bullet for Compare The Market - first theme - matching the STYLE ANCHOR examples above. Concrete tech, no placeholders, no annotation text.>",
+                    "bp2": "<25-40 word bullet for Compare The Market - first theme continued.>",
+                    "bp3": "<25-40 word bullet for Compare The Market - SDLC theme.>",
+                    "bp4": "<25-40 word bullet for Compare The Market - mentoring theme.>"
                 }},
                 "t": {{
                     "skills": "Comma-separated tech stack string using MATCHED SKILLS",
@@ -366,7 +377,11 @@ class BatchCVGenerator:
         json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
         if json_match:
             result = json.loads(json_match.group())
-            
+
+            # Apply tech-casing safety net on the generated CV
+            if 'cv' in result and isinstance(result['cv'], dict):
+                result['cv'] = normalise_cv_casing(result['cv'])
+
             # Validate page length
             is_valid, pages, suggestions = validate_single_page(result.get('cv', {}))
             result['page_validation'] = {
@@ -730,6 +745,60 @@ def llm_extract_job_description(raw_text: str, url: str) -> str:
         return raw_text
 
 
+# Mapping of common lowercase tech tokens to their canonical capitalisation.
+# Used as a safety net to ensure model bullets render with consistent casing
+# (the ATS keyword list and required-skills list are lowercase, which can leak).
+_TECH_CASE_MAP = {
+    'docker': 'Docker', 'kubernetes': 'Kubernetes', 'k8s': 'Kubernetes',
+    'ci/cd': 'CI/CD', 'ci cd': 'CI/CD', 'aws': 'AWS', 'gcp': 'GCP',
+    'azure': 'Azure', 'fastapi': 'FastAPI', 'postgresql': 'PostgreSQL',
+    'mysql': 'MySQL', 'mongodb': 'MongoDB', 'redis': 'Redis',
+    'elasticsearch': 'Elasticsearch', 'opensearch': 'OpenSearch',
+    'github actions': 'GitHub Actions', 'gitlab': 'GitLab',
+    'rest api': 'REST API', 'restful api': 'RESTful API',
+    'graphql': 'GraphQL', 'sql': 'SQL', 'json': 'JSON',
+    'langgraph': 'LangGraph', 'langchain': 'LangChain',
+    'jenkins': 'Jenkins', 'terraform': 'Terraform', 'lambda': 'Lambda',
+    'cloudwatch': 'CloudWatch', 'sqs': 'SQS', 'sns': 'SNS', 's3': 'S3',
+    'rds': 'RDS', 'ecs': 'ECS', 'ec2': 'EC2', 'efs': 'EFS',
+    'pytest': 'pytest',  # intentionally lowercase
+    'nodejs': 'Node.js', 'node.js': 'Node.js',
+    'llm': 'LLM', 'llms': 'LLMs', 'api': 'API', 'apis': 'APIs',
+    'mr': 'MR', 'mrs': 'MRs', 'prd': 'PRD', 'prds': 'PRDs',
+}
+
+
+def fix_tech_casing(text: str) -> str:
+    """Replace lowercase tech tokens with their canonical capitalisation.
+    Skips tokens that already appear inside an obviously-cased context (e.g. URLs)."""
+    if not isinstance(text, str) or not text:
+        return text
+    # Sort by length desc so multi-word tokens replace first
+    for token, canonical in sorted(_TECH_CASE_MAP.items(), key=lambda kv: -len(kv[0])):
+        # Word-boundary, case-insensitive, but only replace when the match is not already canonical
+        pattern = re.compile(r'(?<![A-Za-z0-9_/.-])' + re.escape(token) + r'(?![A-Za-z0-9_/.-])', re.IGNORECASE)
+        def _sub(m):
+            return canonical if m.group(0) != canonical else m.group(0)
+        text = pattern.sub(_sub, text)
+    return text
+
+
+def normalise_cv_casing(cv: dict) -> dict:
+    """Apply tech-casing fix to all text fields in a CV dict."""
+    if not isinstance(cv, dict):
+        return cv
+    if 'bio' in cv:
+        cv['bio'] = fix_tech_casing(cv.get('bio', ''))
+    if 'expertise' in cv and isinstance(cv['expertise'], list):
+        cv['expertise'] = [fix_tech_casing(s) for s in cv['expertise']]
+    for sec in ('c', 't', 'a'):
+        if sec in cv and isinstance(cv[sec], dict):
+            for k, v in list(cv[sec].items()):
+                if isinstance(v, str):
+                    cv[sec][k] = fix_tech_casing(v)
+    return cv
+
+
 def extract_ats_phrases(job_text: str) -> List[str]:
     """Extract high-value ATS phrases from job description"""
     job_lower = job_text.lower()
@@ -789,30 +858,41 @@ def llm_enhance_cv_content(cv_data: dict, job_info: dict, variant: str) -> dict:
     CURRENT CV CONTENT:
     {json.dumps(cv_data, indent=2)}
     
-    ATS OPTIMIZATION RULES (CRITICAL - ATS systems reject CVs that don't match):
-    1. EVERY bullet point MUST have a quantified metric (%, number, time, money saved)
-    2. You MUST include ALL of these exact phrases somewhere in the CV: {', '.join(ats_phrases[:12]) if ats_phrases else ', '.join(required_skills[:12])}
-    3. Distribute required skills across ALL bullet points - don't cluster them
-    4. Mirror exact job language - "CI/CD pipelines" not "CI/CD", "RESTful API" not "REST API"
-    5. Start bullets with action verbs: Built, Developed, Implemented, Designed, Architected, Led, Reduced
-    6. Each bullet: 200-280 chars, format: [Verb] + [2-3 technologies from job] + [metric]
-    
-    MANDATORY PHRASE PLACEMENT (ensure these appear):
-    - Bio: Include {', '.join(required_skills[:3])}
-    - T. Rowe Price bullets: Include {', '.join(required_skills[3:7]) if len(required_skills) > 3 else ''}
-    - AWS bullets: Include {', '.join(required_skills[7:11]) if len(required_skills) > 7 else ''}
-    - Expertise list: Start with {', '.join(required_skills[:8])}
-    
-    EXAMPLES OF HIGH-SCORING ATS BULLETS:
-    - "Developed RESTful APIs using Python and AWS Lambda, processing 50,000+ daily requests with 99.9% uptime"
-    - "Implemented CI/CD pipelines with GitHub Actions and Jenkins, reducing deployment time by 75%"
-    - "Built microservices architecture using Docker and Kubernetes, scaling to handle 3x traffic increase"
-    - "Designed data migration tools with PostgreSQL and AWS S3, migrating 2M+ records with zero data loss"
+    OPTIMISATION RULES (preserve the existing crisp style; only fix gaps - DO NOT add skills/languages the candidate doesn't have):
+    1. Most bullets should have a quantified outcome, but DO NOT force metrics into architectural/leadership bullets if it makes them awkward - mirror the model CV style.
+    2. Ensure these phrases appear naturally somewhere in the CV (proper-cased), BUT ONLY if the candidate actually has them: {', '.join(ats_phrases[:12]) if ats_phrases else ', '.join(required_skills[:12])}
+    3. Distribute required skills across bullets but keep each bullet focused on one theme.
+    4. ALWAYS use proper capitalisation: Docker (not docker), Kubernetes (not kubernetes), CI/CD (not ci/cd), GitHub Actions, FastAPI, PostgreSQL, AWS, REST API, LLM.
+    5. Action-verb stems used by the model: "Led architecture of", "Designed and shipped", "Architected", "Redesigned", "Developed", "Optimised", "Rebuilt", "Deployed", "Mentored". Do NOT pad verbs ("Led software engineering architecture of" -> "Led architecture of").
+    6. Each bullet 25-40 words. Format: [Verb] + [concrete artefact] + [1-3 specific technologies] + [outcome].
+    7. STRICTLY remove filler phrases: "scalable design patterns", "distributed systems architecture", "supporting payment systems knowledge gained", "within scalable design patterns", "across enterprise financial services workflows", "product development cycles", "product ownership mindset", "growth mindset", "collaboration with cross-functional teams" (in bio/expertise), "iterative development and prototyping" (in bio/expertise). Replace with concrete content or shorten.
+    8. BIO HARD CONSTRAINTS:
+       - Maximum 290 characters total.
+       - Sentence 1: role + years + 2-3 domain areas (financial services, cloud infrastructure, AI automation, etc.).
+       - Sentence 2: "Strong background in <3-5 CONCRETE TECHNOLOGIES the candidate has>, <one capability area>".
+       - NEVER use "Senior", "leader", "lead", "Expert in".
+       - NEVER claim languages/frameworks NOT in the input CV (no fabricating C#/.NET, Go, Rust, etc.).
+       - NEVER fill bio with soft-skill JD phrases ("product ownership mindset", "growth mindset", "adaptability").
+    9. EXPERTISE HARD CONSTRAINTS:
+       - Concrete technologies only (Python, AWS, FastAPI, Docker, Kubernetes, PostgreSQL, Redis, GitHub Actions, Terraform, etc.) and possibly capability domains seen in model CVs ("Event-Driven Architectures", "Platform Engineering", "CI/CD & DevOps Practices", "AI Systems & LLM Integrations", "APIs & Backend Services", "Infrastructure as Code (Terraform)").
+       - NEVER include: "Software Engineering", "Architectural design", "Iterative/Agile development", "Prototyping", "Cross-functional collaboration", "Product Development", "Modern OO language proficiency", "Scalable design patterns", "Automated testing", or any language/framework not in the input CV.
+
+    PHRASE PLACEMENT GUIDE (only use phrases the candidate actually has - skip required skills they lack):
+    - Bio: weave in 2-3 of these where natural: {', '.join(required_skills[:3])}
+    - T. Rowe Price bullets: weave in if applicable: {', '.join(required_skills[3:7]) if len(required_skills) > 3 else ''}
+    - AWS bullet: weave in if applicable: {', '.join(required_skills[7:11]) if len(required_skills) > 7 else ''}
+    - Expertise list: lead with concrete TECHNOLOGIES only (Python, AWS, FastAPI, Docker, Kubernetes, PostgreSQL, etc.) - NOT soft skills, methodologies or JD phrasings like "Software Engineering", "Architectural design", "Iterative/Agile development", "Prototyping", "Cross-functional collaboration".
+
+    STYLE ANCHOR (mirror this crisp tone):
+    - "Led architecture of cross-team AI automation converting 50+ Product Requirement Documents (PRDs) into JIRA-ready tickets using LangGraph and FastAPI, reducing planning time from 2 hours to 15 minutes - adopted by 6+ product managers including Head of Product."
+    - "Designed and shipped a 7-agent LangGraph-based AI pipeline with Redis and parallel Python workers, enabling end-to-end PRD processing with automated task routing and production-ready GitLab knowledge graph indexing on AWS EFS."
+    - "Redesigned legacy application with 60% performance improvement and eliminated 3 recurring production incidents per month by implementing scalable event-driven architecture on AWS using SQS and RDS-backed services."
+    - "Optimised AWS region build and Service Catalog deployment pipelines, reducing provisioning time by 40-55% across 15+ services while implementing automated validation and security controls."
     
     Return enhanced CV as JSON:
     {{
         "bio": "ATS-optimized bio mentioning key technologies",
-        "expertise": ["skill1", "skill2", ...14 skills],
+        "expertise": ["skill1", "skill2", ...11 skills],
         "c": {{"skills": "LangChain, LangGraph, Python, AWS, Redis, PostgreSQL", "bp1": "...", "bp2": "...", "bp3": "...", "bp4": "..."}},
         "t": {{"skills": "comma-separated tech stack", "bp1": "...", "bp2": "...", "bp3": "...", "bp4": "..."}},
         "a": {{"skills": "comma-separated tech stack", "bp1": "Single concise impact-driven bullet"}}
@@ -836,9 +916,10 @@ def llm_enhance_cv_content(cv_data: dict, job_info: dict, variant: str) -> dict:
         
         if json_match:
             enhanced = json.loads(json_match.group())
+            enhanced = normalise_cv_casing(enhanced)
             print(f"    ✓ CV content enhanced (Haiku)")
             return enhanced
-        
+
         return cv_data
         
     except Exception as e:
