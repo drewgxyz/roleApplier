@@ -43,7 +43,6 @@ _baseline_test.py
 _compare_report.py
 
 # ===== Database (personal data) =====
-*.db
 *.sqlite
 *.sqlite3
 
