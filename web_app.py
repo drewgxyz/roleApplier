@@ -312,22 +312,81 @@ class BatchCVGenerator:
         CRITICAL INSTRUCTIONS:
         1. CV must fit on exactly 1 page - bio HARD LIMIT 290 chars (count carefully), bullets 25-40 words each (model CVs average 28-32 words per bullet)
         2. Bio: 2-3 sentences. Sentence 1 = role + years + 2-3 domain areas (e.g., "Software Engineer with experience building Python-based backend services, enterprise platform tooling, and AI-driven automation across financial services and cloud infrastructure environments."). Sentence 2 = "Strong background in <3-5 CONCRETE TECHNOLOGIES from MATCHED SKILLS>, <one capability area>". NEVER use "Senior", "leader", "lead", or inflated titles. NEVER fill the bio with soft-skill JD phrases like "product ownership mindset", "adaptability", "growth mindset", "iterative development and prototyping" - those belong in the cover letter, not the CV bio.
-        3. Bullets: short, crisp, action-verb led. Pattern: [Verb] + concrete artefact + 1-3 specific technologies + outcome. Examples of action verbs the model CVs use: Led architecture of, Designed and shipped, Architected, Redesigned, Developed, Optimised, Rebuilt, Deployed, Mentored.
+        3. Bullets: short, crisp, action-verb led, 25-40 words each. Each bullet should pair a concrete artefact with 1-3 specific technologies and a clear outcome.
         4. Expertise: Exactly {expertise_count} CONCRETE TECHNOLOGIES drawn ONLY from MY APPROVED SKILLS / MATCHED SKILLS. Programming languages first. Group related items where natural (e.g. "Docker & Kubernetes", "AWS (ECS, Lambda, RDS, S3, SQS)"). DO NOT use soft skills, methodologies or JD phrasings like "Software Engineering", "Modern OO language proficiency", "Architectural design", "Iterative/Agile development", "Prototyping", "Cross-functional collaboration", "Scalable design patterns", "Product Development". Those belong in the bio/bullets, not expertise.
         5. Tech stacks: 8-11 CONCRETE TECHNOLOGIES (no soft skills, methodologies or process terms) from MATCHED SKILLS that appear in the job description, comma-separated. Always proper-cased.
         6. NEVER mention any BLACKLISTED SKILLS
         6a. NEVER claim languages/frameworks the candidate does not actually have. Only use technologies from MY APPROVED SKILLS. If the JD requires C#/.NET, Go, etc. and they are not in MY APPROVED SKILLS, DO NOT add them to the bio or expertise - just emphasise transferable strengths instead.
         7. STRICTLY AVOID filler phrases that don't add concrete information: "scalable design patterns", "distributed systems architecture", "supporting payment systems knowledge gained", "within scalable design patterns", "across enterprise financial services workflows". Be concrete instead.
-        8. NEVER pad verbs: write "Led architecture of..." not "Led software engineering architecture of...". Write "Architected..." not "Architected end-to-end design and delivery of...".
+        8. NEVER pad verbs: write "Led architecture of..." not "Led software engineering architecture of...". Write "Built..." not "Architected end-to-end design and delivery of...".
         9. Cover letter: 2-3 paragraphs, professional, mention 2-3 relevant matched skills.
 
-        STYLE ANCHOR - bullets in your output should sound like these (these are the model exemplars - mirror their crispness, specificity and verb choice):
-          * "Led architecture of cross-team AI automation converting 50+ Product Requirement Documents (PRDs) into JIRA-ready tickets using LangGraph and FastAPI, reducing planning time from 2 hours to 15 minutes - adopted by 6+ product managers including Head of Product."
-          * "Designed and shipped a 7-agent LangGraph-based AI pipeline with Redis and parallel Python workers, enabling end-to-end PRD processing with automated task routing and production-ready GitLab knowledge graph indexing on AWS EFS."
-          * "Redesigned legacy application with 60% performance improvement and eliminated 3 recurring production incidents per month by implementing scalable event-driven architecture on AWS using SQS and RDS-backed services."
-          * "Architected disaster recovery strategy for legacy core infrastructure, rebuilding 4 critical Python services using FastAPI to enable seamless DR failover - reducing potential downtime from 8 hours to under 30 minutes with automated PostgreSQL backup systems."
-          * "Optimised AWS region build and Service Catalog deployment pipelines, reducing provisioning time by 40-55% across 15+ services while implementing automated validation and security controls to ensure reliable, standardised infrastructure across multiple global regions."
-          * "Mentored 100+ engineers on AI-native development and large language models through 5 workshops and 2 hackathons, supporting teams shipping production features with AI-powered Python backends."
+        ==== ANTI-AI-CV STYLE RULES (CRITICAL - 2026 recruiters can spot generated CVs in seconds) ====
+
+        THE CORE PRINCIPLE: it is not WHICH words you use, it is the DENSITY of buzzwords per sentence and whether each fancy word EARNS ITS PLACE next to a concrete implementation detail.
+
+        A real senior engineer might write "Architected an event-driven migration pipeline on AWS using SQS and Lambda" - that is fine because there is a specific system, named tech, and clear architecture context.
+        An AI writes "Architected scalable multi-agent orchestration systems enabling intelligent automation workflows across enterprise domains" - 4 buzzwords stacked, zero concrete content. This is what we are eliminating.
+
+        THE STRIPPED-SENTENCE TEST (apply this to every bullet before writing it):
+        Strip out adjectives and buzzwords (scalable, intelligent, advanced, robust, seamless, production-grade, agentic, AI-native, cutting-edge, next-generation). If the remaining sentence still describes something concrete and impressive, the bullet passes. If almost nothing is left, the bullet is buzzword-stacking - rewrite it.
+          PASSES: "Built Python services handling automated PR review across 300+ engineers." -> stripped: "Built services handling PR review across 300+ engineers." Still strong.
+          FAILS:  "Built scalable AI-native orchestration systems."                              -> stripped: "Built systems." Nothing left.
+
+        A. HARD BANS - these words have effectively zero legitimate use in a CV and immediately read as LLM output. NEVER write them:
+           leveraged / leveraging
+           intelligent decomposition, intelligent routing, intelligent task routing, intelligent orchestration
+           cutting-edge, next-generation, transformational, groundbreaking, state-of-the-art
+           innovative, advanced AI, holistically, synergies, robust solutions
+           seamlessly (the adverb; "seamless" the adjective is allowed once in context)
+
+        B. DENSITY-CONTROLLED WORDS - legitimate when EARNED, dangerous when stacked. Allowed but each bullet may use AT MOST ONE of these, and ONLY if the same bullet also contains a concrete anchor (a specific named system, named tech, or a real number):
+           architected / orchestrated / scalable / agentic / AI-native / seamless / production-grade / production-ready / distributed / intelligent / end-to-end / cross-functional / cross-team
+
+        C. BUZZWORD-STACKING CHECK - across the whole CV, NEVER produce a single bullet that contains 2+ of the words in list B. Example of what to NEVER write: "scalable agentic orchestration", "intelligent end-to-end automation", "production-grade scalable AI-native pipeline". If you find yourself writing one of these phrases, replace it with a single concrete fact (the system name, the user count, the actual technology).
+
+        D. VERB VARIETY - do NOT start more than 2 bullets with the same verb. Mix from:
+           Built, Developed, Redesigned, Improved, Migrated, Integrated, Deployed, Reduced,
+           Automated, Refactored, Led, Designed, Shipped, Maintained, Owned, Rolled out,
+           Mentored, Investigated, Rebuilt, Consolidated.
+           "Led architecture of" and "Designed and shipped" are also fine (used by your model CVs).
+
+        E. STRUCTURE VARIATION - at least 3 of the 9 bullets must lead with the OUTCOME or scale, not the verb:
+           * "Reduced disaster-recovery downtime from 8 hours to under 30 minutes by rebuilding 4 critical Python services on FastAPI."
+           * "Across 400+ engineers, deployed an AI code review system processing 34,000+ MRs at ~95% adoption."
+           * "From 2 hours to 15 minutes per PRD: automated the PRD-to-JIRA pipeline using LangGraph and FastAPI, now used by 6+ PMs including Head of Product."
+
+        F. METRIC REALISM - recruiters distrust suspiciously clean stats:
+           PREFER: ranges ("40-55%"), time conversions ("from 2 hours to 15 minutes"), concrete counts ("50+ PRDs", "400+ engineers", "15+ services", "2,400+ hosts").
+           For percentages: prefix estimates with "~" ("~95% adoption"), AND pair with a denominator/scale ("~95% adoption across 400+ engineers" - never bare "95%").
+           At most 2 of the 9 bullets should be a clean single percentage; the rest must use ranges, counts, or time conversions.
+           NEVER use orphan stats like "by 80%+" without scale - it reads as fabricated.
+           NEVER use the same metric pattern in adjacent bullets ("by 75%" followed by "by 80%+" is a tell).
+
+        G. TECH-MENTION CAP - the tech stack line already lists technologies; repeating them in every bullet is keyword spam:
+           Each technology appears in AT MOST 2 bullets across the whole CV.
+           Spine exceptions: "Python" up to 4 bullets, "AWS" up to 4 bullets, "FastAPI" up to 3 bullets.
+           If a tech is in the section's "Key tech stack" line, mention it ONCE in that section's bullets where it matters most, not in every bullet.
+
+        H. OPERATIONAL LANGUAGE - senior engineers OWN systems, they don't just BUILD them. At least 1-2 bullets should reflect ownership/operation:
+           reliability, rollout, monitoring, incident reduction, developer workflows, on-call rotation, runbooks, deployment pipeline, operational tooling, production support, post-incident review, supportability, observability.
+           This is especially important for platform/finance/infrastructure roles.
+
+        I. JD TONE - calibrate vocabulary to the target company:
+           AI-native / agent / orchestration vocabulary is fine for: Anthropic, OpenAI, Perplexity, AI-first startups.
+           Restrained, operational vocabulary performs better for: Man Group, Bloomberg, JPMorgan, Thought Machine, enterprise fintech, banks, asset managers, hedge funds.
+           Look at the target company "{job_info.get('company_name', '')}" and industry "{job_info.get('industry', '')}". If it is enterprise-fintech / bank / asset manager: bias toward "Built / Developed / Migrated / Maintained / Owned / Reduced" and concrete systems language. If it is AI startup: "Designed and shipped / Deployed / Led architecture of" with light AI vocabulary is fine.
+
+        ==== END ANTI-AI-CV STYLE RULES ====
+
+        STYLE ANCHOR - bullets in your output should sound like these (these are real model exemplars - mirror their crispness, specificity, verb variety and metric realism):
+          * "Led architecture of cross-team AI automation converting 50+ Product Requirement Documents (PRDs) into JIRA-ready tickets using LangGraph and FastAPI, reducing planning time from 2 hours to 15 minutes - adopted by 6+ product managers including Head of Product."  (verb-first, time-conversion, scale denominator)
+          * "Designed and shipped a 7-agent LangGraph-based AI pipeline with Redis and parallel Python workers, enabling document processing with automated task routing and a production-ready GitLab knowledge graph indexed on AWS EFS."  (no metric, architecture-focused)
+          * "Deployed AI-powered code review system processing 34,000+ merge requests at ~95% adoption across 400+ engineers, auto-approving high-quality MRs and integrating internal APIs and knowledge-graph tooling for codebase-aware suggestions."  (scale denominator + ~ prefix)
+          * "Redesigned legacy application with ~60% performance improvement and eliminated 3 recurring production incidents per month by implementing event-driven architecture on AWS SQS with RDS-backed services."  (operational outcome - incidents per month)
+          * "Rebuilt 4 critical Python services on FastAPI to enable disaster-recovery failover, reducing potential downtime from 8 hours to under 30 minutes with automated PostgreSQL backup."  (outcome-first time conversion)
+          * "Optimised AWS region build and Service Catalog deployment pipelines, reducing provisioning time by 40-55% across 15+ services while implementing automated validation and security controls."  (range, not clean %)
+          * "Mentored 100+ engineers on AI-native development through 5 workshops and 2 hackathons, supporting teams shipping production features with AI-powered Python backends."  (concrete counts)
 
         TECH SUBSTITUTION for Compare the Market bullets - pick concrete technologies from MATCHED SKILLS, never leave placeholders in output:
            - AI framework -> LangGraph, LangChain (default: LangGraph)
@@ -364,34 +423,87 @@ class BatchCVGenerator:
         }}
         """
         
-        response = self.client.messages.create(
-            model=CLAUDE_MODEL_QUALITY,
-            max_tokens=3500,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        
-        response_text = response.content[0].text
-        # Clean up potential issues
-        response_text = re.sub(r',\s*([\}\]])', r'\1', response_text)
-        
-        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-        if json_match:
-            result = json.loads(json_match.group())
+        def _call_llm(p: str) -> dict:
+            resp = self.client.messages.create(
+                model=CLAUDE_MODEL_QUALITY,
+                max_tokens=3500,
+                messages=[{"role": "user", "content": p}]
+            )
+            txt = resp.content[0].text
+            txt = re.sub(r',\s*([\}\]])', r'\1', txt)
+            m = re.search(r'\{.*\}', txt, re.DOTALL)
+            if not m:
+                raise ValueError("Could not parse CV generation response")
+            return json.loads(m.group())
 
-            # Apply tech-casing safety net on the generated CV
-            if 'cv' in result and isinstance(result['cv'], dict):
-                result['cv'] = normalise_cv_casing(result['cv'])
+        result = _call_llm(prompt)
 
-            # Validate page length
-            is_valid, pages, suggestions = validate_single_page(result.get('cv', {}))
-            result['page_validation'] = {
-                'is_valid': is_valid,
-                'estimated_pages': pages,
-                'suggestions': suggestions
-            }
-            
-            return result
-        raise ValueError("Could not parse CV generation response")
+        # Anti-AI-CV validation + targeted retry (up to 1 retry)
+        if 'cv' in result and isinstance(result['cv'], dict):
+            issues = detect_hype_issues(result['cv'])
+            hard_ban = issues.get('hard_ban_hits', [])
+            stacked = issues.get('stacked_bullets', [])
+            orphan = issues.get('orphan_pcts', [])
+            over_verbs = issues.get('over_repeated_verbs', {})
+            outcome_first = issues.get('outcome_first_count', 0)
+
+            needs_retry = (
+                len(hard_ban) > 0
+                or len(stacked) > 0
+                or len(orphan) > 2
+                or any(c > 2 for c in over_verbs.values())
+                or outcome_first < 2
+            )
+
+            if needs_retry:
+                feedback_parts = ["The previous CV failed the anti-AI-CV checks. Regenerate the SAME JSON structure but fix these specific issues:"]
+                if hard_ban:
+                    feedback_parts.append(f"- HARD-BANNED words appeared (remove every instance): {sorted(set(hard_ban))}")
+                if stacked:
+                    feedback_parts.append(
+                        "- Buzzword-stacked bullets (2+ density words in a single sentence - REWRITE each with a single concrete fact and named tech/number):\n  "
+                        + "\n  ".join('"' + s['text'] + '"' for s in stacked)
+                    )
+                if len(orphan) > 2:
+                    feedback_parts.append(
+                        f"- Too many clean orphan percentages without a denominator ({orphan}). Replace most with ranges (40-55%), time conversions (from 2 hours to 15 minutes), or counts (50+ PRDs)."
+                    )
+                if any(c > 2 for c in over_verbs.values()):
+                    repeats = {v: c for v, c in over_verbs.items() if c > 2}
+                    feedback_parts.append(f"- Verbs starting too many bullets (max 2 each): {repeats}. Pick from: Built, Developed, Redesigned, Improved, Migrated, Integrated, Deployed, Reduced, Automated, Refactored, Designed, Shipped, Maintained, Owned, Rebuilt.")
+                if outcome_first < 2:
+                    feedback_parts.append("- Only {} bullets lead with an OUTCOME/scale. Rewrite at least 3 to start with the outcome (e.g. 'Reduced X from 8 hours to 30 minutes by ...', 'Across 400+ engineers, deployed ...').".format(outcome_first))
+
+                retry_prompt = prompt + "\n\n==== RETRY FEEDBACK ====\n" + "\n".join(feedback_parts) + "\n\nReturn ONLY the corrected JSON, same structure as before."
+                try:
+                    retry_result = _call_llm(retry_prompt)
+                    if 'cv' in retry_result and isinstance(retry_result['cv'], dict):
+                        retry_issues = detect_hype_issues(retry_result['cv'])
+                        # Accept the retry if it has strictly fewer hard bans + stacked bullets
+                        before_score = len(hard_ban) + len(stacked) + max(0, len(orphan) - 2)
+                        after_score = (
+                            len(retry_issues.get('hard_ban_hits', []))
+                            + len(retry_issues.get('stacked_bullets', []))
+                            + max(0, len(retry_issues.get('orphan_pcts', [])) - 2)
+                        )
+                        if after_score <= before_score:
+                            result = retry_result
+                except Exception as e:
+                    print(f"  ⚠ Retry failed, keeping original CV: {e}")
+
+        # Apply tech-casing safety net on the (possibly retried) CV
+        if 'cv' in result and isinstance(result['cv'], dict):
+            result['cv'] = normalise_cv_casing(result['cv'])
+
+        # Validate page length
+        is_valid, pages, suggestions = validate_single_page(result.get('cv', {}))
+        result['page_validation'] = {
+            'is_valid': is_valid,
+            'estimated_pages': pages,
+            'suggestions': suggestions
+        }
+
+        return result
     
     def generate_all_variants(self, job_info: dict) -> dict:
         """Generate all CV variants for a job"""
@@ -783,6 +895,144 @@ def fix_tech_casing(text: str) -> str:
     return text
 
 
+# ============================================================================
+# Anti-AI-CV detection (informational - used by benchmark scorer)
+# ============================================================================
+# Two-tier model:
+#   HARD_BANNED  = words with effectively zero legitimate use; any occurrence is a tell.
+#   DENSITY_WORDS = legitimate when EARNED (paired with concrete anchor) but dangerous
+#                   when stacked. The real signal is HOW MANY appear in one bullet, not
+#                   that they appear at all.
+
+HARD_BANNED = [
+    r'leverag(?:e|ed|ing|es)',
+    r'intelligent\s+(?:decomposition|routing|task\s+routing|orchestration)',
+    r'innovative', r'cutting[-\s]edge', r'next[-\s]generation',
+    r'transformational', r'groundbreaking', r'state[-\s]of[-\s]the[-\s]art',
+    r'advanced\s+AI', r'holistically', r'synergies',
+    r'robust\s+solutions?', r'seamlessly',
+]
+
+# Density-controlled (per-bullet). Allowed but stacking 2+ in one bullet = AI tell.
+DENSITY_WORDS = [
+    'architected', 'orchestrated', 'orchestration', 'scalable', 'agentic',
+    'ai-native', 'seamless', 'production-grade', 'production-ready',
+    'distributed', 'intelligent', 'end-to-end', 'cross-functional', 'cross-team',
+]
+
+
+def _bullet_buzzword_count(bullet: str) -> int:
+    """Count DENSITY_WORDS occurrences in a single bullet (case-insensitive)."""
+    b = bullet.lower()
+    n = 0
+    for w in DENSITY_WORDS:
+        n += len(re.findall(r'(?<![A-Za-z])' + re.escape(w) + r'(?![A-Za-z])', b))
+    return n
+
+
+def _bullet_has_concrete_anchor(bullet: str) -> bool:
+    """True if bullet contains a real number OR a recognisable named tech.
+    Used by the stripped-sentence test - bullets without an anchor are pure buzzwords."""
+    if re.search(r'\d', bullet):
+        return True
+    # Look for any canonical tech token (Docker, FastAPI, PostgreSQL, AWS, LangGraph, etc.)
+    named_tech = ['Docker', 'Kubernetes', 'FastAPI', 'PostgreSQL', 'AWS', 'LangGraph',
+                  'LangChain', 'Redis', 'Python', 'GitHub Actions', 'Jenkins', 'Lambda',
+                  'CloudWatch', 'SQS', 'RDS', 'ECS', 'EC2', 'S3', 'Kafka', 'MySQL',
+                  'MongoDB', 'Elasticsearch', 'Terraform', 'Flask', 'Django', 'Active Directory',
+                  'JIRA', 'GitLab', 'CI/CD', 'PRD', 'PRDs', 'MR', 'MRs']
+    for tech in named_tech:
+        if re.search(r'(?<![A-Za-z0-9])' + re.escape(tech) + r'(?![A-Za-z0-9])', bullet):
+            return True
+    return False
+
+
+def detect_hype_issues(cv: dict) -> dict:
+    """Detect anti-AI-CV violations in a generated CV.
+    Returns a dict with issue lists (informational - used by the benchmark scorer)."""
+    bullets = []
+    for sec in ('c', 't', 'a'):
+        if isinstance(cv.get(sec), dict):
+            for k, v in cv[sec].items():
+                if k.startswith('bp') and isinstance(v, str):
+                    bullets.append(v)
+    bio = cv.get('bio', '') or ''
+    all_text = ' '.join(bullets) + ' ' + bio
+
+    # Hard bans (any occurrence anywhere)
+    hard_ban_hits = []
+    for pat in HARD_BANNED:
+        for m in re.finditer(pat, all_text, re.IGNORECASE):
+            hard_ban_hits.append(m.group(0))
+
+    # Buzzword density per bullet (stacking detection)
+    stacked_bullets = []
+    bullet_buzz_counts = []
+    for b in bullets:
+        n = _bullet_buzzword_count(b)
+        bullet_buzz_counts.append(n)
+        if n >= 2:
+            stacked_bullets.append({'count': n, 'text': b})
+
+    # Stripped-sentence failures: bullets that contain density words but no concrete anchor
+    no_anchor = []
+    for b in bullets:
+        if _bullet_buzzword_count(b) >= 1 and not _bullet_has_concrete_anchor(b):
+            no_anchor.append(b)
+
+    # Suspicious clean percentages: not prefixed with ~, not in a range, no nearby denominator
+    orphan_pcts = []
+    for b in bullets:
+        for m in re.finditer(r'(?<!~)\b(\d{2,3})%\+?', b):
+            start = m.start()
+            # Skip ranges like 40-55%
+            preceding = b[max(0, start - 4):start]
+            if re.search(r'\d-$', preceding):
+                continue
+            # Skip if a denominator/scale (digits + noun) appears within 60 chars after
+            tail = b[m.end():m.end() + 80]
+            if re.search(r'\b\d[\d,]*\+?\s+\w+', tail):
+                continue
+            orphan_pcts.append(m.group(0))
+
+    # Verb-start repetition (>2 bullets starting with the same verb)
+    verb_starts = []
+    for b in bullets:
+        toks = b.strip().split()
+        if toks:
+            verb_starts.append(toks[0].rstrip(',').lower())
+    verb_repeat = {}
+    for v in verb_starts:
+        verb_repeat[v] = verb_repeat.get(v, 0) + 1
+    over_repeated_verbs = {v: c for v, c in verb_repeat.items() if c > 2}
+
+    # Outcome-first bullets (not starting with a known verb stem)
+    verb_set = {'built', 'developed', 'redesigned', 'improved', 'migrated', 'integrated',
+                'deployed', 'reduced', 'automated', 'refactored', 'led', 'designed',
+                'shipped', 'maintained', 'owned', 'rolled', 'mentored', 'investigated',
+                'rebuilt', 'consolidated', 'architected', 'orchestrated', 'optimised',
+                'optimized', 'delivered', 'implemented', 'established', 'created'}
+    outcome_first_count = sum(1 for v in verb_starts if v not in verb_set)
+
+    # Operational language presence
+    op_terms = ['reliability', 'monitoring', 'incident', 'rollout', 'runbook',
+                'on-call', 'on call', 'developer workflow', 'operational tooling',
+                'production support', 'deployment pipeline', 'post-incident',
+                'supportability', 'observability']
+    op_hits = sum(1 for term in op_terms if term.lower() in all_text.lower())
+
+    return {
+        'hard_ban_hits': hard_ban_hits,
+        'stacked_bullets': stacked_bullets,  # bullets with 2+ density words
+        'bullet_buzz_counts': bullet_buzz_counts,
+        'no_anchor_bullets': no_anchor,
+        'orphan_pcts': orphan_pcts,
+        'over_repeated_verbs': over_repeated_verbs,
+        'outcome_first_count': outcome_first_count,
+        'op_terms_hits': op_hits,
+    }
+
+
 def normalise_cv_casing(cv: dict) -> dict:
     """Apply tech-casing fix to all text fields in a CV dict."""
     if not isinstance(cv, dict):
@@ -863,9 +1113,15 @@ def llm_enhance_cv_content(cv_data: dict, job_info: dict, variant: str) -> dict:
     2. Ensure these phrases appear naturally somewhere in the CV (proper-cased), BUT ONLY if the candidate actually has them: {', '.join(ats_phrases[:12]) if ats_phrases else ', '.join(required_skills[:12])}
     3. Distribute required skills across bullets but keep each bullet focused on one theme.
     4. ALWAYS use proper capitalisation: Docker (not docker), Kubernetes (not kubernetes), CI/CD (not ci/cd), GitHub Actions, FastAPI, PostgreSQL, AWS, REST API, LLM.
-    5. Action-verb stems used by the model: "Led architecture of", "Designed and shipped", "Architected", "Redesigned", "Developed", "Optimised", "Rebuilt", "Deployed", "Mentored". Do NOT pad verbs ("Led software engineering architecture of" -> "Led architecture of").
-    6. Each bullet 25-40 words. Format: [Verb] + [concrete artefact] + [1-3 specific technologies] + [outcome].
+    5. Use a MIX of verb stems (don't start more than 2 bullets with the same verb): Built, Developed, Redesigned, Improved, Migrated, Integrated, Deployed, Reduced, Automated, Refactored, Led, Designed, Shipped, Maintained, Owned, Rolled out, Mentored, Investigated, Rebuilt. Do NOT pad verbs ("Led software engineering architecture of" -> "Led architecture of").
+    6. Each bullet 25-40 words. Vary the structure: at least 3 of 9 bullets must lead with the OUTCOME (e.g. "Reduced downtime from 8 hours to under 30 minutes by ...", "Across 400+ engineers, deployed ...") rather than a verb. Don't repeat the same Verb+Tech+Metric formula every bullet.
     7. STRICTLY remove filler phrases: "scalable design patterns", "distributed systems architecture", "supporting payment systems knowledge gained", "within scalable design patterns", "across enterprise financial services workflows", "product development cycles", "product ownership mindset", "growth mindset", "collaboration with cross-functional teams" (in bio/expertise), "iterative development and prototyping" (in bio/expertise). Replace with concrete content or shorten.
+    7a. HARD BANS (effectively zero legitimate use - immediately read as LLM): "leveraged", "leveraging", "intelligent decomposition", "intelligent routing", "intelligent orchestration", "innovative", "cutting-edge", "next-generation", "transformational", "groundbreaking", "state-of-the-art", "advanced AI", "holistically", "synergies", "robust solutions", "seamlessly". Replace with simpler verbs and concrete nouns.
+    7b. DENSITY CHECK (the core anti-AI-CV rule): these words are ALLOWED but only when EARNED. Each bullet may contain AT MOST ONE of them, AND only if the same bullet has a concrete anchor (named system, named tech, or real number). The words: "architected", "orchestrated", "scalable", "agentic", "AI-native", "seamless", "production-grade", "production-ready", "distributed", "intelligent", "end-to-end", "cross-functional", "cross-team". NEVER write a bullet that contains 2+ of these (e.g. "scalable AI-native orchestration" is forbidden - that is buzzword stacking).
+    7b2. STRIPPED-SENTENCE TEST: for each bullet, mentally strip adjectives and the words above. If little concrete content remains, the bullet is buzzword-stacking - rewrite it with a specific system, named tech, or real number.
+    7c. METRIC REALISM: PREFER ranges ("40-55%"), time conversions ("from 2 hours to 15 minutes"), concrete counts ("50+ PRDs", "400+ engineers", "15+ services"). For any percentage that is an estimate, prefix with "~" (e.g. "~95% adoption"). ALWAYS pair a percentage with a denominator/scale ("~95% adoption across 400+ engineers") - never bare "95%". Only ~2 of the 9 bullets should be a clean percentage; the rest should use ranges, counts, or time conversions. Reject orphan stats like "by 80%+" without scale.
+    7d. TECH-MENTION CAP: each tech may appear in at most 2 bullets across the whole CV; spine techs "Python" (up to 4 bullets), "AWS" (up to 4), "FastAPI" (up to 3). Don't repeat techs already named in the section's "Key tech stack" line in every bullet of that section.
+    7e. OPERATIONAL LANGUAGE: at least 1 bullet should mention reliability/monitoring/incident reduction/rollout/runbooks/developer workflows/on-call (especially for platform/finance/infra roles). Senior engineers OWN systems.
     8. BIO HARD CONSTRAINTS:
        - Maximum 290 characters total.
        - Sentence 1: role + years + 2-3 domain areas (financial services, cloud infrastructure, AI automation, etc.).
@@ -917,6 +1173,28 @@ def llm_enhance_cv_content(cv_data: dict, job_info: dict, variant: str) -> dict:
         if json_match:
             enhanced = json.loads(json_match.group())
             enhanced = normalise_cv_casing(enhanced)
+            # Safety net: only accept the enhanced CV if it does NOT have more
+            # anti-AI-CV issues than the pre-enhancement CV. Otherwise revert.
+            try:
+                before = detect_hype_issues(cv_data)
+                after = detect_hype_issues(enhanced)
+                before_score = (
+                    len(before.get('hard_ban_hits', [])) * 3
+                    + len(before.get('stacked_bullets', [])) * 3
+                    + len(before.get('no_anchor_bullets', []))
+                    + max(0, len(before.get('orphan_pcts', [])) - 2)
+                )
+                after_score = (
+                    len(after.get('hard_ban_hits', [])) * 3
+                    + len(after.get('stacked_bullets', [])) * 3
+                    + len(after.get('no_anchor_bullets', []))
+                    + max(0, len(after.get('orphan_pcts', [])) - 2)
+                )
+                if after_score > before_score:
+                    print(f"    ⚠ Enhancement degraded style (issues {before_score} -> {after_score}), reverting")
+                    return cv_data
+            except Exception:
+                pass
             print(f"    ✓ CV content enhanced (Haiku)")
             return enhanced
 
