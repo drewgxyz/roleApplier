@@ -70,6 +70,7 @@ TEMPLATE_PATH = 'resources/template.docx'
 # Haiku 3.5: Simple extraction/cleanup tasks (URL scraping, enhancement passes)
 CLAUDE_MODEL_QUALITY = "claude-sonnet-4-6"  # For quality-critical tasks
 CLAUDE_MODEL_FAST = "claude-haiku-4-5"  # For simpler tasks (10x cheaper)
+CLAUDE_MODEL_JUDGE = "claude-opus-4-8"  # For LLM-as-judge feedback layer
 
 # ===== TESTING FLAGS (set in .env) =====
 def _env_bool(key: str, default: bool = True) -> bool:
@@ -82,6 +83,76 @@ ENABLE_TECHNICAL = _env_bool('ENABLE_TECHNICAL', False)
 ENABLE_IMPACT = _env_bool('ENABLE_IMPACT', True)
 ENABLE_COVER_LETTER = _env_bool('ENABLE_COVER_LETTER', False)
 ENABLE_ENHANCEMENT = _env_bool('ENABLE_ENHANCEMENT', True)
+ENABLE_JUDGE = _env_bool('ENABLE_JUDGE', True)
+
+# ===== CODE-SIDE BULLET OVERRIDES =====
+# Canonical bullet descriptions keyed by (company_name, bullet_index).
+# These take priority over whatever the local DB has, ensuring consistent
+# metrics across machines without requiring DB updates.
+# Tech placeholders ({tech}, {cloud}, etc.) are preserved and filled at runtime.
+BULLET_OVERRIDES = {
+    ("Compare the Market", 0): (
+        "Led architecture of cross-team AI automation converting 50+ Product "
+        "Requirement Documents (PRDs) into JIRA-ready tickets using {tech}, "
+        "reducing planning time from 2 hours to 15 minutes - adopted by 6+ "
+        "product managers including Head of Product"
+    ),
+    ("Compare the Market", 1): (
+        "Designed and shipped a 7-agent {tech}-based AI pipeline with Redis "
+        "and parallel Python workers, enabling end-to-end PRD processing with "
+        "automated task routing and production-ready knowledge graph indexing "
+        "on AWS EFS"
+    ),
+    ("Compare the Market", 2): (
+        "Deployed AI-powered code review system processing 34,000+ merge "
+        "requests at ~95% adoption across 400+ engineers, integrating {tech} "
+        "for automated security checks, codebase-aware review suggestions, "
+        "and CI/CD workflow automation"
+    ),
+    ("Compare the Market", 3): (
+        "Mentored 100+ engineers on AI-native development and large language "
+        "models through 5 workshops and 2 hackathons, supporting teams "
+        "shipping production features with AI-powered Python backends"
+    ),
+    ("T. Rowe Price", 0): (
+        "Led architecture of production-grade {tech} data migration tool "
+        "syncing complex relational data across DEV/STAGE/PROD environments "
+        "with rollback safety, referential integrity validation via JSON APIs, "
+        "and automated pytest suites - reducing migration errors by 90%"
+    ),
+    ("T. Rowe Price", 1): (
+        "Redesigned legacy application with ~60% performance improvement and "
+        "eliminated 3 recurring production incidents per month by implementing "
+        "event-driven architecture on {cloud} using {services} and RDS-backed "
+        "services"
+    ),
+    ("T. Rowe Price", 2): (
+        "Rebuilt 4 critical {lang1} services using {lang2} to enable "
+        "disaster-recovery failover, reducing potential downtime from 8 hours "
+        "to under 30 minutes with automated PostgreSQL backup and failover "
+        "systems"
+    ),
+    ("T. Rowe Price", 3): (
+        "Developed high-performance data loaders integrating Active Directory "
+        "data into {database} and {search}, optimising search functionality "
+        "with JSON-based APIs and reducing average query response times by "
+        "65% for 10,000+ daily users"
+    ),
+    ("Amazon Web Services", 0): (
+        "Optimised AWS region build and Service Catalog deployment pipelines, "
+        "reducing provisioning time by 40-55% across 15+ services while "
+        "implementing automated validation and security controls"
+    ),
+    ("Amazon Web Services", 1): (
+        "Deployed Service Catalog services across 5 newly launched AWS "
+        "Regions (UAE, Melbourne, Spain, Zurich, Hyderabad) supporting "
+        "global expansion"
+    ),
+    ("Amazon Web Services", 2): (
+        "Led security escalation response managing 2,400+ hosts, implementing "
+        "automated security patching pipelines"
+    ),
+}
 
 
 class BatchCVGenerator:
@@ -175,8 +246,9 @@ class BatchCVGenerator:
                 exp_context += f" ({exp['start_date']} - {'Present' if exp['is_current'] else exp['end_date']})"
             
             bullets = []
-            for bp in exp.get('bullet_points', []):
-                desc = bp['base_description']
+            for bp_idx, bp in enumerate(exp.get('bullet_points', [])):
+                override_key = (exp['company'], bp_idx)
+                desc = BULLET_OVERRIDES.get(override_key, bp['base_description'])
                 
                 # If there are tech placeholders, try to fill them with matched skills
                 if bp.get('tech_placeholder'):
@@ -299,6 +371,11 @@ class BatchCVGenerator:
 
         MY EXPERIENCE (adapt and enhance these):
         {experience_context}
+
+        METRIC ANCHORS (these are REAL numbers from my work - use them EXACTLY, never round down):
+        - Compare the Market: 50+ PRDs, 2 hours to 15 minutes, 6+ PMs, Head of Product, 7-agent pipeline, 34,000+ merge requests, ~95% adoption, 400+ engineers, 100+ engineers mentored, 5 workshops, 2 hackathons
+        - T. Rowe Price: 90% migration error reduction, ~60% performance improvement, 3 incidents/month eliminated, 4 critical services rebuilt, 8 hours to under 30 minutes DR, 65% query time reduction, 10,000+ daily users
+        - AWS: 40-55% provisioning time reduction, 15+ services, 5 AWS Regions, 2,400+ hosts
 
         MY BACKGROUND FOR COVER LETTER:
         - {settings.get('years_experience', '3.5')} years experience as Software Engineer (since July 2022)
@@ -1205,6 +1282,101 @@ def llm_enhance_cv_content(cv_data: dict, job_info: dict, variant: str) -> dict:
         return cv_data
 
 
+def llm_judge_cv_feedback(cv_data: dict, job_info: dict) -> dict:
+    """
+    LLM-as-judge: Opus reviews the final CV against the JD and returns a
+    corrected CV with specific fixes. Only modifies bullets/bio/expertise that
+    need improvement — preserves everything else.
+    """
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+    job_title = job_info.get('job_title', '')
+    company = job_info.get('company_name', '')
+    required = job_info.get('required_skills', [])
+    preferred = job_info.get('preferred_skills', [])
+    responsibilities = job_info.get('key_responsibilities', [])
+    raw_jd = job_info.get('raw_text', '')
+
+    prompt = f"""You are an expert CV reviewer. You will receive a generated CV (as JSON) and the target job description.
+
+Your job: review the CV and return a CORRECTED version. Fix only what needs fixing. Preserve what is already good.
+
+TARGET JOB:
+- Position: {job_title} at {company}
+- Required Skills: {', '.join(required)}
+- Preferred Skills: {', '.join(preferred)}
+- Responsibilities: {', '.join(responsibilities[:5])}
+
+FULL JOB DESCRIPTION:
+{raw_jd[:3000]}
+
+CURRENT CV:
+{json.dumps(cv_data, indent=2)}
+
+REVIEW CHECKLIST - fix any of these you find:
+1. METRIC ACCURACY: if a bullet says "100+ engineers" or "34,000+ merge requests" or "10,000+ daily users" or "65%", keep those exact numbers. Never deflate (e.g. turning 10,000+ into 2,000+ or 34,000+ into 30,000+).
+2. EXPERTISE MUST BE CONCRETE TECHNOLOGIES ONLY: every item must be something you can install/import (Python, FastAPI, Docker, LangGraph, etc). Remove any soft skills, methodologies or JD phrasings like "System Design and Architecture", "Testing and Clean Code Practices", "Full-Stack Development", "Event-Driven Architecture". Replace with concrete tech from the CV's bullet points.
+3. BULLET ATTRIBUTION: Compare the Market bullets (c section) should only contain Compare the Market work. T. Rowe Price bullets (t section) should only contain T. Rowe Price work. AWS bullets (a section) should only contain AWS work. No cross-contamination.
+4. MISSING JD KEYWORDS: if important required skills from the JD are missing from the CV and the candidate plausibly has them, weave them in naturally.
+5. BIO: max 290 chars, 2-3 sentences, concrete technologies, no inflated titles.
+6. EACH BULLET: 25-40 words, action-verb led, with specific tech and outcome.
+7. NO BUZZWORD STACKING: never 2+ of these in one bullet: architected, orchestrated, scalable, agentic, AI-native, production-grade, distributed, end-to-end, cross-functional.
+8. NO HARD-BANNED WORDS: leveraged, leveraging, cutting-edge, next-generation, innovative, groundbreaking, state-of-the-art, holistically, synergies, robust solutions, seamlessly.
+
+Return the corrected CV as JSON with the EXACT same structure as the input. Change ONLY what needs fixing. If the CV is already good, return it unchanged.
+Return ONLY valid JSON, no commentary."""
+
+    try:
+        response = client.messages.create(
+            model=CLAUDE_MODEL_JUDGE,
+            max_tokens=3500,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        txt = response.content[0].text
+        txt = re.sub(r',\s*([\}\]])', r'\1', txt)
+        json_match = re.search(r'\{.*\}', txt, re.DOTALL)
+
+        if json_match:
+            judged = json.loads(json_match.group())
+            judged = normalise_cv_casing(judged)
+
+            # Safety: verify the judged CV still has the expected sections
+            for key in ('bio', 'expertise', 'c', 't', 'a'):
+                if key not in judged:
+                    print(f"    ⚠ Judge output missing '{key}', keeping original")
+                    return cv_data
+
+            # Safety: check anti-AI-CV issues didn't get worse
+            try:
+                before = detect_hype_issues(cv_data)
+                after = detect_hype_issues(judged)
+                before_score = (
+                    len(before.get('hard_ban_hits', [])) * 3
+                    + len(before.get('stacked_bullets', [])) * 3
+                    + len(before.get('no_anchor_bullets', []))
+                )
+                after_score = (
+                    len(after.get('hard_ban_hits', [])) * 3
+                    + len(after.get('stacked_bullets', [])) * 3
+                    + len(after.get('no_anchor_bullets', []))
+                )
+                if after_score > before_score:
+                    print(f"    ⚠ Judge degraded style (issues {before_score} -> {after_score}), keeping original")
+                    return cv_data
+            except Exception:
+                pass
+
+            print(f"    ✓ CV refined by judge (Opus)")
+            return judged
+
+        return cv_data
+
+    except Exception as e:
+        print(f"    ⚠ Judge failed: {e}, using original")
+        return cv_data
+
+
 def llm_select_best_variant(variant_results: list, job_text: str, job_info: dict) -> dict:
     """
     Use LLM to analyze all CV variants and select the best one for the job.
@@ -1627,6 +1799,12 @@ def generate():
                     else:
                         print(f"    ⏭ Skipping enhancement (disabled in .env)")
                     
+                    # LLM-as-judge: Opus reviews and fixes the final CV
+                    if ENABLE_JUDGE:
+                        cv_data = llm_judge_cv_feedback(cv_data, job_info)
+                    else:
+                        print(f"    ⏭ Skipping judge (disabled in .env)")
+                    
                     # Build CV text for ATS scoring
                     cv_text = f"""
                     {cv_data.get('bio', '')}
@@ -1681,6 +1859,7 @@ def generate():
                         'page_valid': generated.get('page_validation', {}).get('is_valid', True),
                         'page_estimate': generated.get('page_validation', {}).get('estimated_pages', 1.0),
                         'cv_text_preview': cv_text,  # For LLM comparison
+                        'cover_letter': generated.get('cover_letter', ''),  # Reuse later, no extra LLM call
                     })
                     
                 except Exception as e:
@@ -1717,16 +1896,33 @@ def generate():
             # Generate cover letter (if enabled)
             cover_letter_path = None
             if ENABLE_COVER_LETTER:
-                print(f"    Generating cover letter...")
-                cover_letter_path = job_folder / f"Cover_Letter_{company_safe}.pdf"
-                # Use the best variant's cover letter
-                best_generated = generator.generate_cv_and_cover_letter(job_info, best_variant or 'professional')
-                generator.create_cover_letter_pdf(
-                    best_generated.get('cover_letter', ''),
-                    job_info,
-                    str(cover_letter_path)
+                # Reuse the cover letter already produced during variant generation
+                # (generate_cv_and_cover_letter returns both) - avoids a second full LLM call.
+                best_vr = next(
+                    (vr for vr in variant_results
+                     if vr.get('variant') == best_variant and not vr.get('error')),
+                    None
                 )
-                print(f"    ✓ Cover letter saved to {cover_letter_path}")
+                cover_letter_text = best_vr.get('cover_letter', '') if best_vr else ''
+                # Fall back to the first variant that produced a cover letter
+                if not cover_letter_text:
+                    cover_letter_text = next(
+                        (vr.get('cover_letter', '') for vr in variant_results
+                         if vr.get('cover_letter')),
+                        ''
+                    )
+
+                if cover_letter_text:
+                    print(f"    Writing cover letter (reused from {best_variant or 'first'} variant)...")
+                    cover_letter_path = job_folder / f"Cover_Letter_{company_safe}.pdf"
+                    generator.create_cover_letter_pdf(
+                        cover_letter_text,
+                        job_info,
+                        str(cover_letter_path)
+                    )
+                    print(f"    ✓ Cover letter saved to {cover_letter_path}")
+                else:
+                    print(f"    ⚠ No cover letter available from variants, skipping")
             else:
                 print(f"    ⏭ Skipping cover letter (disabled in .env)")
             print(f"\n>>> JOB {i+1} COMPLETE <<<")
